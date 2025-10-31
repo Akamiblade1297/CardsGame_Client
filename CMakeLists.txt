@@ -38,6 +38,8 @@ else()
     else()
         add_executable(CardsGame_Client
             ${PROJECT_SOURCES}
+            network.h
+
         )
     endif()
 endif()

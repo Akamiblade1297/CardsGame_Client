@@ -20,6 +20,7 @@ public:
 
 private slots:
   void on_action_Exit_triggered();
+  void toggle_widget( bool checked );
 
 private:
   Ui::MainWindow *ui;
