@@ -15,7 +15,9 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
+        functions.cpp
         mainwindow.h
+        main.h
         mainwindow.ui
 )
 
@@ -39,6 +41,7 @@ else()
         add_executable(CardsGame_Client
             ${PROJECT_SOURCES}
             network.h
+            protocol.h
 
         )
     endif()
