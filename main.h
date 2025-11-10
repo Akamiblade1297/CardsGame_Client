@@ -22,7 +22,7 @@ struct Card {
    * @param y Y coordinate
    * @param rot Rotation
    */
-  Card ( int num, int x, int y, int rot )
+  Card ( int num, int x = 0, int y = 0, int rot = 0 )
       : Number(num), X(x), Y(y), Rotation(rot) {}
 
   /**
@@ -45,6 +45,21 @@ struct Card {
     Rotation = rot;
     return 0;
   }
+  /**
+   * @brief Parse and set card number from string
+   * @param card String to parse
+   * @return 0 if Success, -1 if Failed
+   */
+  int parse_card ( std::string card ) {
+    try {
+        Number = std::stoi(card);
+    } catch ( std::invalid_argument ) {;} catch ( std::out_of_range ) { return -1; }
+    if ( card == "TRAP" ) Number = TRAP;
+    else if ( card == "TRES" ) Number = TRES;
+    else return -1;
+
+    return 0;
+  } 
 };
 
 /**
@@ -52,15 +67,28 @@ struct Card {
  */
 class CardContainer {
 protected:
-  std::vector<Card> Cards;
+  std::vector<Card*> Cards;
 public:
   CardContainer () {}
+
+  Card* operator[] ( std::string si ) {
+    int i;
+    try {
+        i = std::stoi(si);
+    } catch ( std::out_of_range ) {
+      return nullptr;
+    } catch ( std::invalid_argument ) {
+      return nullptr;
+    }
+    if ( i < 0 || i > Cards.size() ) return nullptr;
+    return Cards[i];
+  }
 
   /**
    * @brief Push card to container
    * @param card Card
    */
-  void push ( Card card ) {
+  void push ( Card* card ) {
     Cards.push_back(card);
   }
 
@@ -70,9 +98,10 @@ public:
    * @param sx New X coordinate
    * @param sy New Y coordinate
    * @param container Destinition container
+   * @param num New card Number
    * @return 0 if Success, -1 if Failed
    */
-  int move ( std::string si, std::string sx, std::string sy, CardContainer* container ) {
+  int move ( std::string si, std::string sx, std::string sy, CardContainer* container, std::string num ) {
     int i, x, y;
     try {
         i = std::stoi(si);
@@ -84,7 +113,8 @@ public:
       return -1;
     }
     if ( i < 0 || i > Cards.size() ) return -1;
-    Cards[i].transform(x, y);
+    if ( Cards[i]->parse_card(num) != 0 ) return -1;
+    Cards[i]->transform(x, y);
     container->push(Cards[i]);
     Cards.erase(Cards.begin()+i);
     return 0;
@@ -107,7 +137,7 @@ public:
       return -1;
     }
     if ( i < 0 || i > Cards.size() ) return -1;
-    return Cards[i].rotate(rot);
+    return Cards[i]->rotate(rot);
   }
 };
 
@@ -125,9 +155,10 @@ public:
    * @param sx New X coordinate
    * @param sy New Y coordinate
    * @param container Destinition container
+   * @param num New card Number
    * @return 0 if Success, -1 if Failed
    */
-  int pop_and_move ( std::string sx, std::string sy, CardContainer* container ) {
+  int pop_and_move ( std::string sx, std::string sy, CardContainer* container, std::string num ) {
     if ( Cards.empty() ) return -1;
     int x, y;
     try {
@@ -138,8 +169,9 @@ public:
     } catch ( std::invalid_argument ) {
       return -1;
     }
-    Card card = Cards.back();
-    card.transform(x, y);
+    Card* card = Cards.back();
+    if ( card->parse_card(num) != 0 ) return -1;
+    card->transform(x, y);
     Cards.pop_back();
 
     container->push(card);
@@ -174,7 +206,7 @@ public:
    * @param pwr Power
    * @param gld Gold
    */
-  Player ( std::string name, int lvl, int pwr, int gld )
+  Player ( std::string name, int lvl = 0, int pwr = 0, int gld = 0 )
       : Name(name), Level(lvl), Power(pwr), Gold(gld) {}
 };
 

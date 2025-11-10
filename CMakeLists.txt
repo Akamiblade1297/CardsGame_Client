@@ -16,6 +16,7 @@ set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
         functions.cpp
+        string_func.cpp
         mainwindow.h
         main.h
         mainwindow.ui

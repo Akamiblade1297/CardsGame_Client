@@ -1,6 +1,7 @@
 #ifndef FUNC_CPP
 #define FUNC_CPP
 #include "main.h"
+#include <string>
 
 // FUNCTION PROTOTYPES //
 
@@ -52,7 +53,9 @@ Deck* deckByName ( std::string name );
  */
 bool isVisible ( std::string containerName );
 
+
 Table table;
+PlayerManager playerMgr;
 
 bool isVisible( std::string containerName ) {
     if ( containerName == "TABLE" || containerName == "EQUIPPED" ) { return true; }
