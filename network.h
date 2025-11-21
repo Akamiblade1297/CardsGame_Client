@@ -10,6 +10,8 @@
 #endif
 #include <string>
 
+#define DEL '\n'
+
 /**
  * @brief Socket wrapper
  */
@@ -64,6 +66,13 @@ public:
   failed:
     *success = false;
   }
+  ~Connection () {
+#ifdef _WIN32
+      closesocket(sockfd);
+#else
+      close(sockfd);
+#endif
+  }
 
   /**
    * @brief Send message to peer
@@ -72,7 +81,7 @@ public:
    * @return Message length if Success, -1 if Failure
    */
   int Send ( std::string message ) {
-    return send(sockfd, message.data(), message.size(), 0);
+    return send(sockfd, (message + DEL).data(), message.size(), 0);
   }
 
   /**
@@ -90,6 +99,8 @@ public:
     }
     return recv(sockfd, buffer, bufsize, 0);
   }
+
+  void Close () { this->~Connection(); }
 };
 
 #endif // NETWORK_H

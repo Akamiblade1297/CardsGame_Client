@@ -24,6 +24,7 @@ struct Card {
    */
   Card ( int num, int x = 0, int y = 0, int rot = 0 )
       : Number(num), X(x), Y(y), Rotation(rot) {}
+  Card () : Card(0) {}
 
   /**
    * @brief Change card position

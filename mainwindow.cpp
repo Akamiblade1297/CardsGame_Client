@@ -2,6 +2,11 @@
 #include "./ui_mainwindow.h"
 #include "network.h"
 
+#define TABL_ENABLED false
+#define CHAT_ENABLED false
+#define CONS_ENABLED true
+#define SERV_ENABLED false
+
 MainWindow::MainWindow (QWidget *parent)
     : QMainWindow (parent), ui (new Ui::MainWindow)
 {
@@ -21,14 +26,14 @@ MainWindow::MainWindow (QWidget *parent)
   connect(ui->action_Console,     SIGNAL(toggled(bool)), this, SLOT(toggle_widget(bool)));
   connect(ui->action_ServerList,  SIGNAL(toggled(bool)), this, SLOT(toggle_widget(bool)));
 
-  ui->action_Table     ->setChecked(true);ui->Table     ->setVisible(true);
-  ui->action_Chat      ->setChecked(true);ui->Chat      ->setVisible(true);
-  ui->action_Console   ->setChecked(true);ui->Console   ->setVisible(true);
-  ui->action_ServerList->setChecked(true);ui->ServerList->setVisible(true);
+  ui->action_Table     ->setChecked(TABL_ENABLED);ui->Table     ->setVisible(TABL_ENABLED);
+  ui->action_Chat      ->setChecked(CHAT_ENABLED);ui->Chat      ->setVisible(CHAT_ENABLED);
+  ui->action_Console   ->setChecked(CONS_ENABLED);ui->Console   ->setVisible(CONS_ENABLED);
+  ui->action_ServerList->setChecked(SERV_ENABLED);ui->ServerList->setVisible(SERV_ENABLED);
 
-  ui->statusbar->showMessage("Some status", -1);
+  ui->statusbar->showMessage("Testing Console", -1);
 
-  NetworkInit();
+  Connection::NetworkInit();
 }
 
 MainWindow::~MainWindow () { delete ui; }
