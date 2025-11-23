@@ -1,6 +1,3 @@
-#ifndef STRING_FUNC_CPP
-#define STRING_FUNC_CPP
-
 #include <string>
 #include <vector>
 #include <numeric>
@@ -24,5 +21,3 @@ std::vector<std::string> split( char* str, char del ) {
 
     return str_vec;
 }
-
-#endif

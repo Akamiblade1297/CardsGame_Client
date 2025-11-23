@@ -54,6 +54,7 @@ struct Card {
   int parse_card ( std::string card ) {
     try {
         Number = std::stoi(card);
+        return 0;
     } catch ( std::invalid_argument ) {;} catch ( std::out_of_range ) { return -1; }
     if ( card == "TRAP" ) Number = TRAP;
     else if ( card == "TRES" ) Number = TRES;
@@ -67,9 +68,8 @@ struct Card {
  * @brief The CardContainer class
  */
 class CardContainer {
-protected:
-  std::vector<Card*> Cards;
 public:
+  std::vector<Card> Cards;
   CardContainer () {}
 
   Card* operator[] ( std::string si ) {
@@ -82,14 +82,14 @@ public:
       return nullptr;
     }
     if ( i < 0 || i > Cards.size() ) return nullptr;
-    return Cards[i];
+    return &Cards[i];
   }
 
   /**
    * @brief Push card to container
    * @param card Card
    */
-  void push ( Card* card ) {
+  void push ( Card card ) {
     Cards.push_back(card);
   }
 
@@ -114,8 +114,8 @@ public:
       return -1;
     }
     if ( i < 0 || i > Cards.size() ) return -1;
-    if ( Cards[i]->parse_card(num) != 0 ) return -1;
-    Cards[i]->transform(x, y);
+    if ( Cards[i].parse_card(num) != 0 ) return -1;
+    Cards[i].transform(x, y);
     container->push(Cards[i]);
     Cards.erase(Cards.begin()+i);
     return 0;
@@ -138,7 +138,7 @@ public:
       return -1;
     }
     if ( i < 0 || i > Cards.size() ) return -1;
-    return Cards[i]->rotate(rot);
+    return Cards[i].rotate(rot);
   }
 };
 
@@ -170,9 +170,9 @@ public:
     } catch ( std::invalid_argument ) {
       return -1;
     }
-    Card* card = Cards.back();
-    if ( card->parse_card(num) != 0 ) return -1;
-    card->transform(x, y);
+    Card card = Cards.back();
+    if ( card.parse_card(num) != 0 ) return -1;
+    card.transform(x, y);
     Cards.pop_back();
 
     container->push(card);
@@ -226,5 +226,8 @@ public:
     return nullptr;
   }
 };
+
+extern Table table;
+extern PlayerManager playerMgr;
 
 #endif

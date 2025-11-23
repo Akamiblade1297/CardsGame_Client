@@ -17,7 +17,12 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         functions.cpp
         string_func.cpp
-        mainwindow.h
+        protocol.cpp
+        functions.h
+        string_func.h
+        mainwindow.h 
+        protocol.h
+        network.h
         main.h
         mainwindow.ui
 )
@@ -41,9 +46,6 @@ else()
     else()
         add_executable(CardsGame_Client
             ${PROJECT_SOURCES}
-            network.h
-            protocol.h
-
         )
     endif()
 endif()

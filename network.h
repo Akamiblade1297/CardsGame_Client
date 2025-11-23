@@ -81,7 +81,7 @@ public:
    * @return Message length if Success, -1 if Failure
    */
   int Send ( std::string message ) {
-    return send(sockfd, (message + DEL).data(), message.size(), 0);
+    return send(sockfd, (message + DEL).data(), message.size()+1, 0);
   }
 
   /**

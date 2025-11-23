@@ -1,6 +1,6 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
-#include "network.h"
+#include <iostream>
 
 #define TABL_ENABLED false
 #define CHAT_ENABLED false
@@ -30,10 +30,6 @@ MainWindow::MainWindow (QWidget *parent)
   ui->action_Chat      ->setChecked(CHAT_ENABLED);ui->Chat      ->setVisible(CHAT_ENABLED);
   ui->action_Console   ->setChecked(CONS_ENABLED);ui->Console   ->setVisible(CONS_ENABLED);
   ui->action_ServerList->setChecked(SERV_ENABLED);ui->ServerList->setVisible(SERV_ENABLED);
-
-  ui->statusbar->showMessage("Testing Console", -1);
-
-  Connection::NetworkInit();
 }
 
 MainWindow::~MainWindow () { delete ui; }
