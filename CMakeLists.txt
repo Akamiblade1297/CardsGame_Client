@@ -18,10 +18,12 @@ set(PROJECT_SOURCES
         functions.cpp
         string_func.cpp
         protocol.cpp
+        console.cpp
         functions.h
         string_func.h
         mainwindow.h 
         protocol.h
+        console.h
         network.h
         main.h
         mainwindow.ui

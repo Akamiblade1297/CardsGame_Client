@@ -18,11 +18,29 @@ public:
   MainWindow (QWidget *parent = nullptr);
   ~MainWindow ();
 
+    /**
+     * Interpret a console command
+     * @param command
+     * @return boolean Success and string Out
+     */
+    std::pair<bool, std::string> conInterpret ( std::string command );
+
+    /**
+     * Send string to ConsoleOut
+     * @param text
+     */
+    void conOut ( std::string text );
+
 private slots:
   void on_action_Exit_triggered();
   void toggle_widget( bool checked );
 
+  void on_ConsoleIn_returnPressed();
+
 private:
   Ui::MainWindow *ui;
+  std::map<std::string, std::string> conVars;
+
+  std::vector<std::string> parse_cmd ( std::string command );
 };
 #endif // MAINWINDOW_H

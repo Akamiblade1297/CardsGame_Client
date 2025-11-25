@@ -20,8 +20,8 @@
 #define CHECK_SIZE if ( received.size() < size ) {  return; }
 
 namespace {
+    Connection conn;
     Player* localplayer;
-    Connection* conn;
 
     char buffer[BUFSIZE] = {0};
     std::deque<std::string> received;
@@ -95,7 +95,7 @@ namespace protocol {
         public:
             CriticalError ( CritErrorCode cod, std::string breakpoint ) : code(cod), std::runtime_error(str_code(cod)+' '+breakpoint) {
                 flags[JOINED] = false;
-                conn->Close();
+                conn.Close();
             }
     };
 }
@@ -378,7 +378,7 @@ namespace {
     void _receiver () {
         if ( ! flags[JOINED] ) throw CriticalError(CRIT__NOT_JOINED, "_receiver");
         while (1) {
-            int len = conn->Receive(buffer, BUFSIZE);
+            int len = conn.Receive(buffer, BUFSIZE);
             if ( len <= 0 ) {
                 flags[JOINED] = false;
                 return;
@@ -413,9 +413,7 @@ namespace {
         }
         else { 
             std::string pass = response->at(i);
-            std::cout << i << std::endl;
             for ( ++i ; pass.size() < 8 ; i++ ) {
-                std::cout << i << ' ' << pass.size() << std::endl;
                 if ( i >= response->size() ) break;
                 pass += DEL + response->at(i);
             } i++;
@@ -425,18 +423,18 @@ namespace {
 }
 
 namespace protocol {
-    ErrorCode join ( Connection* socket, const char* username, char* result ) {
+    ErrorCode join ( const char* username, char* result ) {
         if ( flags[JOINED] ) return PROTOCOL_ERR;
         if ( flags[RENAMING] ) {
-            if ( conn->Send(username) == -1 ) return SEND_ERROR;
+            if ( conn.Send(username) == -1 ) return SEND_ERROR;
         } else {
-            conn = socket;
             std::string temp = "JOIN";
-            if ( conn->Send(temp + DEL + username) == -1 ) return SEND_ERROR;
+            if ( conn.Send(temp + DEL + username) == -1 ) return SEND_ERROR;
         }
-        int len = conn->Receive(buffer, BUFSIZE);
-        if ( len < 5 ) throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "join"); // min response: "RENAME"
+        int len = conn.Receive(buffer, BUFSIZE);
+        if ( len < 6 ) throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "join"); // min response: "RENAME"
         buffer[len] = 0;
+        std::cout << buffer << std::endl;
         std::vector<std::string> response = split(buffer, DEL);
 
         if ( response.size() >= 2 && response[0] == "OK" ) { // OK <pass>
@@ -445,10 +443,6 @@ namespace protocol {
             int i = 1;
             std::string pass = parse_pass(&response, i);
             if ( pass.size() != 8 ) throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "join_OK");
-            if ( result[0] < 8 ) {
-                result[0] = 8;
-                return BUFFER_ERROR;
-            }
             std::memcpy(result, pass.data(), 8);
             for (; i < response.size() ; i++ ) received.push_back(response[i]);
             _join(username);
@@ -462,13 +456,10 @@ namespace protocol {
             return TIMEOUT;
         } else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "join");
     }
-    ErrorCode rejoin ( Connection* socket, const char* pass ) {
-        if ( flags[JOINED] ) return PROTOCOL_ERR;
-
-        conn = socket;
+    ErrorCode rejoin ( const char* pass ) {
         std::string temp = "REJOIN";
-        if ( conn->Send(temp + DEL + pass) == -1 ) return SEND_ERROR;
-        int len = conn->Receive(buffer, BUFSIZE);
+        if ( conn.Send(temp + DEL + pass) == -1 ) return SEND_ERROR;
+        int len = conn.Receive(buffer, BUFSIZE);
         if ( len < 2 ) throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "rejoin");
         buffer[len] = 0;
         std::vector<std::string> response = split(buffer, DEL);
@@ -488,7 +479,7 @@ namespace protocol {
 
         std::lock_guard<std::mutex> lock(muPing);
         std::string temp = "PING";
-        if ( conn->Send(temp + DEL + data) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp + DEL + data) == -1 ) return SEND_ERROR;
 
         flags[PONG_R] = false;
         while ( !flags[PONG_R] ) {
@@ -502,18 +493,18 @@ namespace protocol {
     }
     ErrorCode chat ( std::string msg ) {
         std::string temp = "CHAT";
-        if ( conn->Send(temp + DEL + msg) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp + DEL + msg) == -1 ) return SEND_ERROR;
         return NOERROR;
     }
     ErrorCode action ( std::string act ) {
         std::string temp = "ACT";
-        if ( conn->Send(temp + DEL + act) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp + DEL + act) == -1 ) return SEND_ERROR;
         return NOERROR;
     }
     ErrorCode whisper ( std::string player, std::string msg ) {
         std::lock_guard<std::mutex> lock(muWhisper);       
         std::string temp = "WHISPER";
-        int res = conn->Send(temp + DEL + player + DEL + msg);
+        int res = conn.Send(temp + DEL + player + DEL + msg);
 
         if ( res == -1 ) return SEND_ERROR;
         flags[WHIS_R] = false;
@@ -523,11 +514,10 @@ namespace protocol {
         return NOERROR;
     }
     ErrorCode roll ( uint8_t* rolls, std::string dice, std::string num) {
-        if ( rolls[0] < std::stoi(num) ) return BUFFER_ERROR;
         std::lock_guard<std::mutex> lock(muRoll);
         std::string temp = "ROLL";
         _rolls = rolls;
-        if ( conn->Send(temp + DEL + dice + DEL + num) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp + DEL + dice + DEL + num) == -1 ) return SEND_ERROR;
         
         flags[ROLL_R] = false;
         while ( !flags[ROLL_R] ) {}
@@ -538,7 +528,7 @@ namespace protocol {
     ErrorCode deck ( std::string src, std::string dest, std::string x, std::string y ) {
         std::lock_guard<std::mutex> lock(muDeck);
         std::string temp = "DECK";
-        if ( conn->Send(temp + DEL + src + DEL + dest + DEL + x + DEL + y) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp + DEL + src + DEL + dest + DEL + x + DEL + y) == -1 ) return SEND_ERROR;
         
         flags[DECK_R] = false;
         while ( !flags[DECK_R] ) {}
@@ -547,7 +537,7 @@ namespace protocol {
     ErrorCode move ( std::string src, std::string card_id, std::string dest, std::string x, std::string y ) {
         std::lock_guard<std::mutex> lock(muMove);
         std::string temp = "MOVE";
-        if ( conn->Send(temp + DEL + src + DEL + card_id + DEL + dest + DEL + x + DEL + y) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp + DEL + src + DEL + card_id + DEL + dest + DEL + x + DEL + y) == -1 ) return SEND_ERROR;
 
         flags[MOVE_R] = false;
         while ( !flags[MOVE_R] ) {}
@@ -556,7 +546,7 @@ namespace protocol {
     ErrorCode rotate ( std::string spatial, std::string card_id, std::string rot) {
         std::lock_guard<std::mutex> lock(muRot);
         std::string temp = "ROTATE";
-        if ( conn->Send(temp + DEL + spatial + DEL + card_id + DEL + rot ) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp + DEL + spatial + DEL + card_id + DEL + rot ) == -1 ) return SEND_ERROR;
 
         flags[ROT_R] = false;
         while ( !flags[ROT_R] ) {}
@@ -565,7 +555,7 @@ namespace protocol {
     ErrorCode flip ( std::string spatial, std::string card_id ) {
         std::lock_guard<std::mutex> lock(muFlip);
         std::string temp = "FLIP";
-        if ( conn->Send(temp + DEL + spatial + DEL + card_id ) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp + DEL + spatial + DEL + card_id ) == -1 ) return SEND_ERROR;
 
         flags[FLIP_R] = false;
         while ( !flags[FLIP_R] ) {}
@@ -574,7 +564,7 @@ namespace protocol {
     ErrorCode shuffle ( std::string deck ) {
         std::lock_guard<std::mutex> lock(muShuffle);
         std::string temp = "SHUFFLE";
-        if ( conn->Send(temp + DEL + deck ) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp + DEL + deck ) == -1 ) return SEND_ERROR;
 
         flags[SHUF_R] = false;
         while ( !flags[SHUF_R] ) {}
@@ -583,7 +573,7 @@ namespace protocol {
     ErrorCode set ( std::string stat, std::string value ) {
         std::lock_guard<std::mutex> lock(muSet);
         std::string temp = "SET";
-        if ( conn->Send(temp+DEL+stat+DEL+value ) == -1) return SEND_ERROR;
+        if ( conn.Send(temp+DEL+stat+DEL+value ) == -1) return SEND_ERROR;
 
         flags[SET_R] = false;
         while ( !flags[SET_R] ) {}
@@ -591,7 +581,7 @@ namespace protocol {
     }
     ErrorCode rename ( std::string name ) {
         std::string temp = "RENAME";
-        if ( conn->Send(temp+DEL+name ) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp+DEL+name ) == -1 ) return SEND_ERROR;
         else return NOERROR;
     }
     ErrorCode see ( std::string container, std::vector<Card>* res ) {
@@ -599,7 +589,7 @@ namespace protocol {
         _see = res;
 
         std::string temp = "SEE";
-        if ( conn->Send(temp+DEL+container ) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp+DEL+container ) == -1 ) return SEND_ERROR;
 
         flags[SEE_R] = false;
         while ( ! flags[SEE_R] ) {}
@@ -610,7 +600,7 @@ namespace protocol {
         _cards = res;
 
         std::string temp = "CARDS";
-        if ( conn->Send(temp+DEL+container ) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp+DEL+container ) == -1 ) return SEND_ERROR;
 
         flags[CRDS_R] = false;
         while ( ! flags[CRDS_R] ) {}
@@ -621,7 +611,7 @@ namespace protocol {
         _stats = res;
 
         std::string temp = "STAT";
-        if ( conn->Send(temp+DEL+player ) == -1 ) return SEND_ERROR;
+        if ( conn.Send(temp+DEL+player ) == -1 ) return SEND_ERROR;
 
         flags[STAT_R] = false;
         while ( ! flags[STAT_R] ) {}
@@ -631,7 +621,7 @@ namespace protocol {
         std::lock_guard<std::mutex> lock(muPlayers);
         _players = res;
 
-        if ( conn->Send("PLAYERS") == -1 ) return SEND_ERROR;
+        if ( conn.Send("PLAYERS") == -1 ) return SEND_ERROR;
 
         flags[PLRS_R] = false;
         while ( ! flags[PLRS_R] ) {}

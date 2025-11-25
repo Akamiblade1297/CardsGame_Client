@@ -66,10 +66,13 @@ public:
   failed:
     *success = false;
   }
+  Connection () {}
   ~Connection () {
 #ifdef _WIN32
+      shutdown(sockfd, SD_BOTH);
       closesocket(sockfd);
 #else
+      shutdown(sockfd, SHUT_RDWR);
       close(sockfd);
 #endif
   }

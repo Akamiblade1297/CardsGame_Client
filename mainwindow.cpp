@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
+#include "console.h"
 #include <iostream>
 
 #define TABL_ENABLED false
@@ -51,4 +52,3 @@ void MainWindow::toggle_widget ( bool checked ) {
       ui->ServerList->setVisible(checked);
   }
 }
-

@@ -20,8 +20,7 @@ namespace protocol {
         CRIT__BAD_STAT,
     };
     enum ErrorCode {
-        INVALID_SOCK =-12,
-        BUFFER_ERROR =-11,
+        INVALID_SOCK =-11,
         PROTOCOL_ERR =-10,
         SEND_ERROR   = -9,
         NONMATCH     = -8,
@@ -36,21 +35,20 @@ namespace protocol {
         RENAME       =  1,
     };
 
+    ErrorCode connect ( const char* u );
     /**
      * @brief Join
-     * @param socket Connection socket
      * @param username Player Username
-     * @param result Pointer to a result response (first element is buffer length);
-     * @return NOERROR, RENAME, SEND_ERROR, PROTOCOL_ERR, BUFFER_ERROR
+     * @param result Pointer to a result response (must be size of 8 bytes);
+     * @return NOERROR, RENAME, SEND_ERROR, PROTOCOL_ERR
      */
-    ErrorCode join ( Connection* socket, const char* username, char* result );
+    ErrorCode join ( const char* username, char* result );
     /**
      * @brief Rejoin
-     * @param socket Connection socket
      * @param pass Player pass
      * @return NOERROR, NOT_FOUND, SEND_ERROR, PROTOCOL_ERR
      */
-    ErrorCode rejoin ( Connection* socket, const char* pass );
+    ErrorCode rejoin ( const char* pass );
     /**
      * @brief Ping
      * @param timeout Connection timeout in secconds
@@ -78,7 +76,7 @@ namespace protocol {
     ErrorCode whisper ( std::string player, std::string msg );
     /**
      * @brief Roll a dice
-     * @param rolls Pointer to result array of rolled numbers (first element is buffer length)
+     * @param rolls Pointer to result array of rolled numbers (must be size of num bytes)
      * @param dice Number of sides of each dice
      * @param num Number of dices to roll (1-10)
      * @return NOERROR, OUT_OF_RNG, NOT_A_NUM, SEND_ERROR, BUFFER_ERROR
