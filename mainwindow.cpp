@@ -1,7 +1,5 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
-#include "console.h"
-#include <iostream>
 
 #define TABL_ENABLED false
 #define CHAT_ENABLED false

@@ -23,11 +23,13 @@ set(PROJECT_SOURCES
         string_func.h
         mainwindow.h 
         protocol.h
-        console.h
         network.h
         main.h
         mainwindow.ui
 )
+
+add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(CardsGame_Client

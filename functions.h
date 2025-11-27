@@ -4,21 +4,13 @@
 #include "main.h"
 
 /**
- * Get Player's string Stat by Name
+ * Get Player's Stat by Name
  *
  * @param name Stat name
  * @param player Player
  * @return Pointer to a Stat if Success, nullptr if Failed (Not Found)
  */
-std::string* sStatByName ( std::string name, Player* player );
-/**
- * Get Player's int Stat by Name
- *
- * @param name Stat name
- * @param player Player
- * @return Pointer to a Stat if Success, nullptr if Failed (Not Found)
- */
-int* iStatByName ( std::string name, Player* player );
+std::string* StatByName ( std::string name, Player* player );
 /**
  * Get CardContainer by Name
  *

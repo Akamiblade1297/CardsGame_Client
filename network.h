@@ -43,28 +43,20 @@ public:
    * @param port Port to connect
    * @param success Pointer to a Bool value, Result
    */
-  Connection ( const char* ip, int port, bool* success ) {
+  Connection ( const char* ip, unsigned short port, bool* success ) {
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip);
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-#ifdef _WIN32
-    if ( sockfd == INVALID_SOCKET )
-#else
-    if ( sockfd == 0 )
-#endif
-      goto failed;
-    if ( connect( sockfd, (struct sockaddr*)&addr, sizeof(addr) ) == -1 )
-      goto failed;
+    if ( sockfd == -1 || connect( sockfd, (struct sockaddr*)&addr, sizeof(addr) ) == -1 ) {
+        *success = false;
+        return;
+    }
 
     FD_ZERO(&readfd);
     FD_SET(sockfd, &readfd);
     *success = true;
-    return;
-
-  failed:
-    *success = false;
   }
   Connection () {}
   ~Connection () {

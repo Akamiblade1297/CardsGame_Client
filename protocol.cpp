@@ -15,15 +15,14 @@
 #include <bitset>
 #include <iostream>
 
-#define BUFSIZE 1024
+#define BUFSIZE 1128
 
 #define CHECK_SIZE if ( received.size() < size ) {  return; }
 
 namespace {
-    Connection conn;
-    Player* localplayer;
+    Connection* conn = nullptr;
 
-    char buffer[BUFSIZE] = {0};
+    char buffer[BUFSIZE+1] = {0};
     std::deque<std::string> received;
 
     enum FLAG {
@@ -34,7 +33,7 @@ namespace {
         WHIS_S = 3,
 
         ROLL_R = 4,
-        ROLL_S = 5,
+        // ROLL_S = 5,
 
         DECK_R = 6,
 
@@ -67,6 +66,8 @@ namespace {
 }
 
 namespace protocol {
+    Player* localplayer = nullptr;
+
     class CriticalError : public std::runtime_error {
         private:
             CritErrorCode code;
@@ -95,13 +96,14 @@ namespace protocol {
         public:
             CriticalError ( CritErrorCode cod, std::string breakpoint ) : code(cod), std::runtime_error(str_code(cod)+' '+breakpoint) {
                 flags[JOINED] = false;
-                conn.Close();
+                conn->Close();
             }
     };
 }
 
 using namespace protocol;
 namespace {
+    int8_t ErRoll;
     int8_t ErDeck;
     int8_t ErMove;
     int8_t ErRot;
@@ -123,10 +125,9 @@ namespace {
     std::mutex muPlayers;
 
     char ping_data[9] = {0};
-    uint8_t* _rolls;
     std::vector<Card>* _see;
     std::vector<Card>* _cards;
-    std::vector<std::string>* _stats;
+    std::string* _stats;
     std::vector<std::string>* _players;
 
     std::random_device rd;
@@ -145,7 +146,7 @@ namespace {
                     Player new_player(received[1]);
                     playerMgr.Players.push_back(new_player);
                 }
-            } else if ( received[0] == "WHIS_SUC" ) { // WHISPER_SUC
+            } else if ( received[0] == "WHISPER_SUC" ) { // WHISPER_SUC
                 size = 1;
                 flags[WHIS_S] = true;
                 flags[WHIS_R] = true;
@@ -155,10 +156,9 @@ namespace {
                 flags[WHIS_R] = true;
             } else if ( received[0] == "ROLL_ERR" ) { // ROLL_ERR <error>
                 size = 2; CHECK_SIZE;
-                if      ( received[1] == "OUT OF RANGE" ) *_rolls = OUT_OF_RNG;
-                else if ( received[1] == "NOT A NUMBER" ) *_rolls = NOT_A_NUM;
+                if      ( received[1] == "OUT OF RANGE" ) ErRoll = OUT_OF_RNG;
+                else if ( received[1] == "NOT A NUMBER" ) ErRoll = NOT_A_NUM;
                 else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_ROLL_ERR");
-                flags[ROLL_S] = false;
                 flags[ROLL_R] = true;
             } else if ( received[0] == "DECK_ERR" ) { // DECK_ERR <error>
                 size = 2; CHECK_SIZE;
@@ -221,13 +221,8 @@ namespace {
                 size = 4; CHECK_SIZE;
                 int num = std::stoi(received[3]);
                 size += num; CHECK_SIZE;
-                if ( received[1] == localplayer->Name ) {
-                    for ( int i = 0 ; i < num ; i++ ) {
-                        _rolls[i] = std::stoi(received[4+i]);
-                        flags[ROLL_S] = true;
-                        flags[ROLL_R] = true;
-                    }
-                }
+                ErRoll = NOERROR;
+                flags[ROLL_R];
             } else if ( received[0] == "SEE" ) { // SEE <card1> <card2> ... <cardn> END
                 size = 2;
                 std::string buf;
@@ -279,7 +274,7 @@ namespace {
             } else if ( received[0] == "STAT" ) { // STAT <LEVEL> <POWER> <GOLD>
                 size = 4;CHECK_SIZE;
 
-                for ( int i = 1 ; i < size ; i++ ) _stats->push_back(received[i]);
+                for ( int i = 1 ; i < size ; i++ ) _stats[i-1] = received[i];
 
                 flags[STAT_S] = true;
                 flags[STAT_R] = true;
@@ -356,12 +351,10 @@ namespace {
                     }
                 } else if ( received[i] == "SET" ) { // SET <stat> <value>
                     size += 2; CHECK_SIZE;
-                    std::string* sStat = sStatByName(received[i+ 1], sender);
-                    int* iStat = iStatByName(received[i+ 1], sender);
-                    if ( sStat == nullptr ) {
-                        if ( iStat == nullptr ) throw CriticalError(CRIT__BAD_STAT, "_worker_SET");
-                        *iStat = std::stoi(received[i+ 2]);
-                    } else *sStat = received[i+ 2];
+                    std::string* Stat = StatByName(received[i+ 1], sender);
+                    if ( Stat == nullptr ) {
+                        throw CriticalError(CRIT__BAD_STAT, "_worker_SET");
+                    } else *Stat = received[i+ 2];
 
                     if ( sender == localplayer ) {
                         ErSet = NOERROR;
@@ -378,7 +371,7 @@ namespace {
     void _receiver () {
         if ( ! flags[JOINED] ) throw CriticalError(CRIT__NOT_JOINED, "_receiver");
         while (1) {
-            int len = conn.Receive(buffer, BUFSIZE);
+            int len = conn->Receive(buffer, BUFSIZE);
             if ( len <= 0 ) {
                 flags[JOINED] = false;
                 return;
@@ -406,42 +399,47 @@ namespace {
         std::thread receiver_thread(_receiver);
         receiver_thread.detach();
     }
-    std::string parse_pass(std::vector<std::string>* response, int& i) {
-        if ( response->at(i).size() == 8 ) {
-            i++;
-            return response->at(i-1).data();
-        }
-        else { 
-            std::string pass = response->at(i);
-            for ( ++i ; pass.size() < 8 ; i++ ) {
-                if ( i >= response->size() ) break;
-                pass += DEL + response->at(i);
-            } i++;
-            return pass;
-        }
+    std::string parse_pass(char* buffer, int& i) {
+        char pass[8];
+        std::memcpy(pass, buffer+3, 8);
+
+        for ( int k = 0 ; k < 8 ; k++ ) {
+            if ( pass[k] == DEL ) i++;
+        } i++;
+
+        std::string cpass = "";
+        cpass.append(pass, 8);
+        return cpass;
     }
 }
 
 namespace protocol {
+    ErrorCode connect ( const char* ip, unsigned short port ) {
+        if ( conn != nullptr )
+            delete conn;
+        bool suc;
+        conn = new Connection( ip, port, &suc );
+        return suc ? NOERROR : SEND_ERROR;
+    }
     ErrorCode join ( const char* username, char* result ) {
         if ( flags[JOINED] ) return PROTOCOL_ERR;
         if ( flags[RENAMING] ) {
-            if ( conn.Send(username) == -1 ) return SEND_ERROR;
+            if ( conn->Send(username) == -1 ) return SEND_ERROR;
         } else {
             std::string temp = "JOIN";
-            if ( conn.Send(temp + DEL + username) == -1 ) return SEND_ERROR;
+            if ( conn->Send(temp + DEL + username) == -1 ) return SEND_ERROR;
         }
-        int len = conn.Receive(buffer, BUFSIZE);
+        int len = conn->Receive(buffer, BUFSIZE);
         if ( len < 6 ) throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "join"); // min response: "RENAME"
         buffer[len] = 0;
         std::cout << buffer << std::endl;
         std::vector<std::string> response = split(buffer, DEL);
 
-        if ( response.size() >= 2 && response[0] == "OK" ) { // OK <pass>
+        if (  len >= 11 && response[0] == "OK" ) { // OK <pass>
             flags[RENAMING] = false;
 
             int i = 1;
-            std::string pass = parse_pass(&response, i);
+            std::string pass = parse_pass(buffer, i);
             if ( pass.size() != 8 ) throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "join_OK");
             std::memcpy(result, pass.data(), 8);
             for (; i < response.size() ; i++ ) received.push_back(response[i]);
@@ -458,8 +456,10 @@ namespace protocol {
     }
     ErrorCode rejoin ( const char* pass ) {
         std::string temp = "REJOIN";
-        if ( conn.Send(temp + DEL + pass) == -1 ) return SEND_ERROR;
-        int len = conn.Receive(buffer, BUFSIZE);
+        temp+=DEL;
+        temp.append(pass, 8);
+        if ( conn->Send(temp) == -1 ) return SEND_ERROR;
+        int len = conn->Receive(buffer, BUFSIZE);
         if ( len < 2 ) throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "rejoin");
         buffer[len] = 0;
         std::vector<std::string> response = split(buffer, DEL);
@@ -472,39 +472,47 @@ namespace protocol {
         else if ( response[0] == "NOT FOUND" ) return NOT_FOUND;
         else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "rejoin");
     }
-    ErrorCode ping ( int timeout ) {
+    ErrorCode ping ( int& time, int timeout ) {
         uint64_t dat = dis(rng);
         char data[9] = {0};
         std::memcpy(data, &dat, 8);
 
         std::lock_guard<std::mutex> lock(muPing);
+        time = timeout;
         std::string temp = "PING";
-        if ( conn.Send(temp + DEL + data) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp + DEL + data) == -1 ) return SEND_ERROR;
 
         flags[PONG_R] = false;
         while ( !flags[PONG_R] ) {
-            if ( timeout > 0 ) {
-                timeout-=1;
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-            } else return TIMEOUT;
+            if ( time > 0 ) {
+                time-=1;
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            } else {
+                time = timeout - time;
+                return TIMEOUT;
+            }
         }
-        if ( std::strcmp(data, ping_data) == 0 ) return NOERROR;
+
+        if ( std::strcmp(data, ping_data) == 0 ) {
+            time = timeout - time;
+            return NOERROR;
+        }
         else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "ping");
     }
     ErrorCode chat ( std::string msg ) {
         std::string temp = "CHAT";
-        if ( conn.Send(temp + DEL + msg) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp + DEL + msg) == -1 ) return SEND_ERROR;
         return NOERROR;
     }
     ErrorCode action ( std::string act ) {
         std::string temp = "ACT";
-        if ( conn.Send(temp + DEL + act) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp + DEL + act) == -1 ) return SEND_ERROR;
         return NOERROR;
     }
     ErrorCode whisper ( std::string player, std::string msg ) {
         std::lock_guard<std::mutex> lock(muWhisper);       
         std::string temp = "WHISPER";
-        int res = conn.Send(temp + DEL + player + DEL + msg);
+        int res = conn->Send(temp + DEL + player + DEL + msg);
 
         if ( res == -1 ) return SEND_ERROR;
         flags[WHIS_R] = false;
@@ -513,22 +521,20 @@ namespace protocol {
         if ( !flags[WHIS_S] ) return NOT_FOUND;
         return NOERROR;
     }
-    ErrorCode roll ( uint8_t* rolls, std::string dice, std::string num) {
+    ErrorCode roll ( std::string dice, std::string num) {
         std::lock_guard<std::mutex> lock(muRoll);
         std::string temp = "ROLL";
-        _rolls = rolls;
-        if ( conn.Send(temp + DEL + dice + DEL + num) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp + DEL + dice + DEL + num) == -1 ) return SEND_ERROR;
         
         flags[ROLL_R] = false;
         while ( !flags[ROLL_R] ) {}
 
-        if ( flags[ROLL_S] ) return NOERROR;
-        else return (ErrorCode)*rolls;
+        return (ErrorCode)ErRoll;
     }
     ErrorCode deck ( std::string src, std::string dest, std::string x, std::string y ) {
         std::lock_guard<std::mutex> lock(muDeck);
         std::string temp = "DECK";
-        if ( conn.Send(temp + DEL + src + DEL + dest + DEL + x + DEL + y) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp + DEL + src + DEL + dest + DEL + x + DEL + y) == -1 ) return SEND_ERROR;
         
         flags[DECK_R] = false;
         while ( !flags[DECK_R] ) {}
@@ -537,7 +543,7 @@ namespace protocol {
     ErrorCode move ( std::string src, std::string card_id, std::string dest, std::string x, std::string y ) {
         std::lock_guard<std::mutex> lock(muMove);
         std::string temp = "MOVE";
-        if ( conn.Send(temp + DEL + src + DEL + card_id + DEL + dest + DEL + x + DEL + y) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp + DEL + src + DEL + card_id + DEL + dest + DEL + x + DEL + y) == -1 ) return SEND_ERROR;
 
         flags[MOVE_R] = false;
         while ( !flags[MOVE_R] ) {}
@@ -546,7 +552,7 @@ namespace protocol {
     ErrorCode rotate ( std::string spatial, std::string card_id, std::string rot) {
         std::lock_guard<std::mutex> lock(muRot);
         std::string temp = "ROTATE";
-        if ( conn.Send(temp + DEL + spatial + DEL + card_id + DEL + rot ) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp + DEL + spatial + DEL + card_id + DEL + rot ) == -1 ) return SEND_ERROR;
 
         flags[ROT_R] = false;
         while ( !flags[ROT_R] ) {}
@@ -555,7 +561,7 @@ namespace protocol {
     ErrorCode flip ( std::string spatial, std::string card_id ) {
         std::lock_guard<std::mutex> lock(muFlip);
         std::string temp = "FLIP";
-        if ( conn.Send(temp + DEL + spatial + DEL + card_id ) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp + DEL + spatial + DEL + card_id ) == -1 ) return SEND_ERROR;
 
         flags[FLIP_R] = false;
         while ( !flags[FLIP_R] ) {}
@@ -564,7 +570,7 @@ namespace protocol {
     ErrorCode shuffle ( std::string deck ) {
         std::lock_guard<std::mutex> lock(muShuffle);
         std::string temp = "SHUFFLE";
-        if ( conn.Send(temp + DEL + deck ) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp + DEL + deck ) == -1 ) return SEND_ERROR;
 
         flags[SHUF_R] = false;
         while ( !flags[SHUF_R] ) {}
@@ -573,7 +579,7 @@ namespace protocol {
     ErrorCode set ( std::string stat, std::string value ) {
         std::lock_guard<std::mutex> lock(muSet);
         std::string temp = "SET";
-        if ( conn.Send(temp+DEL+stat+DEL+value ) == -1) return SEND_ERROR;
+        if ( conn->Send(temp+DEL+stat+DEL+value ) == -1) return SEND_ERROR;
 
         flags[SET_R] = false;
         while ( !flags[SET_R] ) {}
@@ -581,7 +587,7 @@ namespace protocol {
     }
     ErrorCode rename ( std::string name ) {
         std::string temp = "RENAME";
-        if ( conn.Send(temp+DEL+name ) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp+DEL+name ) == -1 ) return SEND_ERROR;
         else return NOERROR;
     }
     ErrorCode see ( std::string container, std::vector<Card>* res ) {
@@ -589,7 +595,7 @@ namespace protocol {
         _see = res;
 
         std::string temp = "SEE";
-        if ( conn.Send(temp+DEL+container ) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp+DEL+container ) == -1 ) return SEND_ERROR;
 
         flags[SEE_R] = false;
         while ( ! flags[SEE_R] ) {}
@@ -600,18 +606,18 @@ namespace protocol {
         _cards = res;
 
         std::string temp = "CARDS";
-        if ( conn.Send(temp+DEL+container ) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp+DEL+container ) == -1 ) return SEND_ERROR;
 
         flags[CRDS_R] = false;
         while ( ! flags[CRDS_R] ) {}
         return flags[CRDS_S] ? NOERROR : NOT_FOUND;
     }
-    ErrorCode stat ( std::string player, std::vector<std::string>* res ) {
+    ErrorCode stat ( std::string player, std::string* res ) {
         std::lock_guard<std::mutex> lock(muStat);
         _stats = res;
 
         std::string temp = "STAT";
-        if ( conn.Send(temp+DEL+player ) == -1 ) return SEND_ERROR;
+        if ( conn->Send(temp+DEL+player ) == -1 ) return SEND_ERROR;
 
         flags[STAT_R] = false;
         while ( ! flags[STAT_R] ) {}
@@ -621,7 +627,7 @@ namespace protocol {
         std::lock_guard<std::mutex> lock(muPlayers);
         _players = res;
 
-        if ( conn.Send("PLAYERS") == -1 ) return SEND_ERROR;
+        if ( conn->Send("PLAYERS") == -1 ) return SEND_ERROR;
 
         flags[PLRS_R] = false;
         while ( ! flags[PLRS_R] ) {}

@@ -6,6 +6,8 @@
 #include "main.h"
 
 namespace protocol {
+    extern Player* localplayer;
+
     class CriticalError;
 
     enum CritErrorCode {
@@ -35,7 +37,13 @@ namespace protocol {
         RENAME       =  1,
     };
 
-    ErrorCode connect ( const char* u );
+    /**
+     * @brief Connect to server
+     * @param ip IP Address of a server
+     * @param port Server game port
+     * @return NOERROR, SEND_ERROR
+     */
+    ErrorCode connect ( const char* ip, unsigned short port );
     /**
      * @brief Join
      * @param username Player Username
@@ -51,10 +59,11 @@ namespace protocol {
     ErrorCode rejoin ( const char* pass );
     /**
      * @brief Ping
-     * @param timeout Connection timeout in secconds
+     * @param time Pointer to store elapsed time for receiving data
+     * @param timeout Connection timeout in millisecconds
      * @return NOERROR, TIMEOUT, SEND_ERROR
      */
-    ErrorCode ping ( int timeout = 10 );
+    ErrorCode ping ( int& time, int timeout = 10000 );
     /**
      * @brief Send message to Chat
      * @param msg Message to send
@@ -76,12 +85,11 @@ namespace protocol {
     ErrorCode whisper ( std::string player, std::string msg );
     /**
      * @brief Roll a dice
-     * @param rolls Pointer to result array of rolled numbers (must be size of num bytes)
      * @param dice Number of sides of each dice
      * @param num Number of dices to roll (1-10)
-     * @return NOERROR, OUT_OF_RNG, NOT_A_NUM, SEND_ERROR, BUFFER_ERROR
+     * @return NOERROR, OUT_OF_RNG, NOT_A_NUM, SEND_ERROR
      */
-    ErrorCode roll ( uint8_t* rolls, std::string dice = "6", std::string num = "1" );
+    ErrorCode roll ( std::string dice = "6", std::string num = "1" );
     /**
      * @brief Pop card from Deck
      * @param src Source deck
@@ -155,7 +163,7 @@ namespace protocol {
      * @param res Array of stats values
      * @return NOERROR, NOT_FOUND, SEND_ERROR
      */
-    ErrorCode stat ( std::string player, std::vector<std::string>* res );
+    ErrorCode stat ( std::string player, std::string* res );
     /**
      * @brief Get all players
      * @param res Array of player names

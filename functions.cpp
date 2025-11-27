@@ -6,11 +6,7 @@ bool isVisible( std::string containerName ) {
     return false;
 }
 
-std::string* sStatByName ( std::string name, Player* player ) {
-    return nullptr;
-}
-
-int* iStatByName ( std::string name, Player* player ) {
+std::string* StatByName ( std::string name, Player* player ) {
     if ( name == "LEVEL" ) {
         return &player->Level;
     } else if ( name == "POWER" ) {

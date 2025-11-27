@@ -62,6 +62,16 @@ struct Card {
 
     return 0;
   } 
+
+  /**
+   * @brief Unparse card number to string
+   * @return String reference of card number
+   */
+  std::string unparse_card () {
+      if ( Number == TRAP ) return "TRAP";
+      else if ( Number == TRES ) return "TRES";
+      else return std::to_string(Number);
+  }
 };
 
 /**
@@ -197,7 +207,7 @@ public:
 class Player {
 public:
   std::string Name;
-  int Level, Power, Gold;
+  std::string Level, Power, Gold;
   CardContainer Inventory, Equiped;
 
   /**
@@ -207,7 +217,7 @@ public:
    * @param pwr Power
    * @param gld Gold
    */
-  Player ( std::string name, int lvl = 0, int pwr = 0, int gld = 0 )
+  Player ( std::string name, std::string lvl = "0", std::string pwr = "0", std::string gld = "0" )
       : Name(name), Level(lvl), Power(pwr), Gold(gld) {}
 };
 
