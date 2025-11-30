@@ -1,15 +1,27 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
+#include <string>
+#include <QScrollBar>
 
 #define TABL_ENABLED false
 #define CHAT_ENABLED false
 #define CONS_ENABLED true
 #define SERV_ENABLED false
 
+namespace{
+    QScrollBar* bar;
+        void scrollToBottom () {
+        bar->setValue(bar->maximum());
+    }
+}
+
 MainWindow::MainWindow (QWidget *parent)
     : QMainWindow (parent), ui (new Ui::MainWindow)
 {
   ui->setupUi (this);
+
+  bar = ui->ConsoleScrollArea->verticalScrollBar();
+  QObject::connect(bar, &QScrollBar::rangeChanged, scrollToBottom);
 
   ui->splitter_TaSL->setStretchFactor(0,3);
   ui->splitter_TaSL->setStretchFactor(1,1);
@@ -24,6 +36,9 @@ MainWindow::MainWindow (QWidget *parent)
   connect(ui->action_Table,       SIGNAL(toggled(bool)), this, SLOT(toggle_widget(bool)));
   connect(ui->action_Console,     SIGNAL(toggled(bool)), this, SLOT(toggle_widget(bool)));
   connect(ui->action_ServerList,  SIGNAL(toggled(bool)), this, SLOT(toggle_widget(bool)));
+
+  connect(this, &MainWindow::consoleOut, this, &MainWindow::conOut);
+  connect(this, &MainWindow::consoleIn, this, &MainWindow::conIn);
 
   ui->action_Table     ->setChecked(TABL_ENABLED);ui->Table     ->setVisible(TABL_ENABLED);
   ui->action_Chat      ->setChecked(CHAT_ENABLED);ui->Chat      ->setVisible(CHAT_ENABLED);

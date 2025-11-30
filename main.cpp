@@ -1,14 +1,12 @@
 #include "main.h"
 #include "mainwindow.h"
-#include "protocol.h"
 #include "network.h"
-#include <chrono>
-#include <thread>
-#include <iostream>
+#include <string>
 
 #include <QApplication>
 Table table;
 PlayerManager playerMgr;
+MainWindow* mainWindow;
 
 int
 main (int argc, char *argv[])
@@ -16,7 +14,8 @@ main (int argc, char *argv[])
   Connection::NetworkInit();
   QApplication a (argc, argv);
   MainWindow w;
-  w.show ();
+  w.show();
 
+  mainWindow = &w;
   return a.exec ();
 }

@@ -8,7 +8,6 @@
 #include <utility>
 #include <vector>
 #include <iostream>
-#include <QScrollBar>
 
 std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
     std::vector<std::string> res = {"SUCCESS"};
@@ -322,8 +321,12 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 ans = "";
                 success = true;
                 break;
-            case protocol::OUT_OF_RNG | protocol::NOT_A_NUM:
+            case protocol::NOT_A_NUM:
                 ans = "ERROR: Invalid number";
+                success = false;
+                break;
+            case protocol::OUT_OF_RNG:
+                ans = "ERROR: Out of Range";
                 success = false;
                 break;
             case protocol::SEND_ERROR:
@@ -337,37 +340,54 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         }
     } else if ( cmd.size() >= 6 && cmd[1] == "deck" ) { // deck [src] [dest] [x] [y]
         cmdsize = 6;
-
-        protocol::ErrorCode res = protocol::deck(cmd[2], cmd[3], cmd[4], cmd[5]);
-        switch ( res ) {
-            case protocol::NOERROR:
-                ans = "";
-                success = true;
-                break;
-            case protocol::EMPTY:
-                ans = "ERROR: The deck is empty";
-                success = false;
-                break;
-            case protocol::NOT_FOUND:
-                ans = "ERROR: Not found deck or destination";
-                success = false;
-                break;
-            case protocol::NOT_A_NUM | protocol::OUT_OF_RNG:
-                ans = "ERROR: Invalid number";
-                success = false;
-                break;
-            case protocol::SEND_ERROR:
-                ans = "ERROR: Failed to send";
-                success = false;
-                break;
-            default:
-                ans = "ERROR: Unexpected error";
-                success = false;
-                break;
+        Deck* deck = deckByName(cmd[2]);
+        if ( deck == nullptr ) {
+            ans = "ERROR: Not found deck";
+            success = false;
+        } else if ( deck->Cards.empty() ) {
+            ans = "ERROR: Local deck is empty. Try running \"cards "+cmd[2]+"\"";
+            success = false;
+        } else {
+            protocol::ErrorCode res = protocol::deck(cmd[2], cmd[3], cmd[4], cmd[5]);
+            switch ( res ) {
+                case protocol::NOERROR:
+                    ans = "";
+                    success = true;
+                    break;
+                case protocol::EMPTY:
+                    ans = "ERROR: The deck is empty";
+                    success = false;
+                    break;
+                case protocol::NOT_FOUND:
+                    ans = "ERROR: Not found destination or server version mismatched with client version";
+                    success = false;
+                    break;
+                case protocol::NOT_A_NUM:
+                    ans = "ERROR: Invalid number";
+                    success = false;
+                    break;
+                case protocol::OUT_OF_RNG:
+                    ans = "ERROR: Out of Range";
+                    success = false;
+                    break;
+                case protocol::SEND_ERROR:
+                    ans = "ERROR: Failed to send";
+                    success = false;
+                    break;
+                default:
+                    ans = "ERROR: Unexpected error";
+                    success = false;
+                    break;
+            }
         }
-    } else if ( cmd.size() >= 6 && cmd[1] == "move" ) { // move [src] [index] [dest] [x] [y]
-        cmdsize = 6;
+    } else if ( cmd.size() >= 7 && cmd[1] == "move" ) { // move [src] [index] [dest] [x] [y]
+        cmdsize = 7;
+        CardContainer* spatial;
+        if ( spatial == nullptr ) {
+            ans = "ERROR: Not found source";
+            success = false;
 
+        }
         protocol::ErrorCode res = protocol::move(cmd[2], cmd[3], cmd[4], cmd[5], cmd[6]);
         switch ( res ) {
             case protocol::NOERROR:
@@ -375,11 +395,15 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 success = true;
                 break;
             case protocol::NOT_FOUND:
-                ans = "ERROR: Not found deck or destination";
+                ans = "ERROR: Not found source or destination";
                 success = false;
                 break;
-            case protocol::NOT_A_NUM | protocol::OUT_OF_RNG:
+            case protocol::NOT_A_NUM:
                 ans = "ERROR: Invalid number";
+                success = false;
+                break;
+            case protocol::OUT_OF_RNG:
+                ans = "ERROR: Out of Range";
                 success = false;
                 break;
             case protocol::SEND_ERROR:
@@ -404,8 +428,12 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 ans = "ERROR: Not such spatial container \""+cmd[2]+"\"";
                 success = false;
                 break;
-            case protocol::NOT_A_NUM | protocol::OUT_OF_RNG:
+            case protocol::NOT_A_NUM:
                 ans = "ERROR: Invalid number";
+                success = false;
+                break;
+            case protocol::OUT_OF_RNG:
+                ans = "ERROR: Out of Range";
                 success = false;
                 break;
             case protocol::SEND_ERROR:
@@ -430,8 +458,12 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 ans = "ERROR: Not such spatial container \""+cmd[2]+"\"";
                 success = false;
                 break;
-            case protocol::NOT_A_NUM | protocol::OUT_OF_RNG:
+            case protocol::NOT_A_NUM:
                 ans = "ERROR: Invalid number";
+                success = false;
+                break;
+            case protocol::OUT_OF_RNG:
+                ans = "ERROR: Out of Range";
                 success = false;
                 break;
             case protocol::SEND_ERROR:
@@ -456,8 +488,12 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 ans = "ERROR: No such deck \""+cmd[2]+"\"";
                 success = false;
                 break;
-            case protocol::NOT_A_NUM | protocol::OUT_OF_RNG:
+            case protocol::NOT_A_NUM:
                 ans = "ERROR: Invalid number";
+                success = false;
+                break;
+            case protocol::OUT_OF_RNG:
+                ans = "ERROR: Out of Range";
                 success = false;
                 break;
             case protocol::SEND_ERROR:
@@ -475,15 +511,19 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         protocol::ErrorCode res = protocol::set(cmd[2], cmd[3]);
         switch ( res ) {
             case protocol::NOERROR:
-                ans = cmd[2]+" has been set to \""+cmd[3]+"\"";
+                ans = "";
                 success = true;
                 break;
             case protocol::NOT_FOUND:
                 ans = "ERROR: No such stat \""+cmd[2]+"\"";
                 success = false;
                 break;
-            case protocol::NOT_A_NUM | protocol::OUT_OF_RNG:
+            case protocol::NOT_A_NUM:
                 ans = "ERROR: Invalid number";
+                success = false;
+                break;
+            case protocol::OUT_OF_RNG:
+                ans = "ERROR: Out of Range";
                 success = false;
                 break;
             case protocol::SEND_ERROR:
@@ -536,11 +576,11 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
             switch ( res ) {
                 case protocol::NOERROR:
                     cards->erase(cards->begin(), cards->begin()+old_size);
-                    ans = "";
+                    ans = "ID:\tNumber:\tX:\tY:\tRotation:\n\n";
                     for ( int i = 0 ; i < cards->size() ; i++ ) {
                         Card crd = cards->at(i);
-                        ans += crd.unparse_card() + ' ' + std::to_string(crd.X) + ' ' + std::to_string(crd.Y) + ' ' + std::to_string(crd.Rotation) + '\n';
-                    } ans += "END";
+                        ans += std::to_string(i) + '\t' + crd.unparse_card() + '\t' + std::to_string(crd.X) + '\t' + std::to_string(crd.Y) + '\t' + std::to_string(crd.Rotation) + '\n';
+                    }
                     success = true;
                     break;
                 case protocol::NOT_FOUND:
@@ -580,11 +620,11 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
             switch ( res ) {
                 case protocol::NOERROR:
                     cards->erase(cards->begin(), cards->begin()+old_size);
-                    ans = "";
+                    ans = "ID:\tNumber:\tX:\tY:\tRotation:\n\n";
                     for ( int i = 0 ; i < cards->size() ; i++ ) {
                         Card crd = cards->at(i);
-                        ans += crd.unparse_card() + ' ' + std::to_string(crd.X) + ' ' + std::to_string(crd.Y) + ' ' + std::to_string(crd.Rotation) + '\n';
-                    } ans += "END";
+                        ans += std::to_string(i) + '\t' + crd.unparse_card() + '\t' + std::to_string(crd.X) + '\t' + std::to_string(crd.Y) + '\t' + std::to_string(crd.Rotation) + '\n';
+                    }
                     success = true;
                     break;
                 case protocol::NOT_FOUND:
@@ -681,18 +721,16 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
     return std::pair(success, ans);
 }
 
-void MainWindow::conOut ( std::string text ) {
+void MainWindow::conOut ( QString text ) {
     if ( text != "" )
-    ui->ConsoleOut->setText(ui->ConsoleOut->text() + QString::fromStdString(text) + '\n');
+    ui->ConsoleOut->setText(ui->ConsoleOut->text() + text + '\n');
 }
 
-void MainWindow::conIn ( std::string command ) {
+void MainWindow::conIn ( QString command ) {
     conOut("> "+command);
-    std::pair<int, std::string> result = conInterpret(command);
+    std::pair<int, std::string> result = conInterpret(command.toStdString());
     if ( result.second == "CLEAR" ) ui->ConsoleOut->setText("");
-    else conOut(result.second);
-    QScrollBar* bar = ui->ConsoleScrollArea->verticalScrollBar();
-    bar->setValue(bar->maximum());
+    else conOut(QString::fromStdString((result.second)));
 }
 
 void MainWindow::on_ConsoleIn_returnPressed()
@@ -700,5 +738,5 @@ void MainWindow::on_ConsoleIn_returnPressed()
     QString command = ui->ConsoleIn->text();
     ui->ConsoleIn->setText("");
 
-    conIn(command.toStdString());
+    conIn(command);
 }

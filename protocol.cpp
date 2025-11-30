@@ -14,6 +14,7 @@
 #include <chrono>
 #include <bitset>
 #include <iostream>
+#include "mainwindow.h"
 
 #define BUFSIZE 1128
 
@@ -213,16 +214,23 @@ namespace {
                 flags[STAT_R] = true;
             } else if ( received[0] == "CHAT" ) { // CHAT <player> <message>
                 size = 3; CHECK_SIZE;
+                emit mainWindow->consoleOut(QString::fromStdString(received[1]+": \""+received[2]+"\""));
             } else if ( received[0] == "ACT" ) { // ACT <player> <action>
                 size = 3; CHECK_SIZE;
+                emit mainWindow->consoleOut(QString::fromStdString(received[1]+" *"+received[2]+"*"));
             } else if ( received[0] == "WHISPER" ) { // WHISPER <sender> <message>
                 size = 3; CHECK_SIZE;
+                emit mainWindow->consoleOut(QString::fromStdString(received[1]+" whispered: \""+received[2]+"\""));
             } else if ( received[0] == "ROLL" ) { // ROLL <player> <dice> <n> <r1> <r2> <r3> ... <rn>
                 size = 4; CHECK_SIZE;
                 int num = std::stoi(received[3]);
                 size += num; CHECK_SIZE;
+                std::string message = received[1]+" rolled "+received[3]+"d"+received[2]+": ";
+                for ( int i = 4 ; i < size ; i++ ) message += received[i] + " ";
+                emit mainWindow->consoleOut(QString::fromStdString(message));
+
                 ErRoll = NOERROR;
-                flags[ROLL_R];
+                flags[ROLL_R] = true;
             } else if ( received[0] == "SEE" ) { // SEE <card1> <card2> ... <cardn> END
                 size = 2;
                 std::string buf;
@@ -304,8 +312,9 @@ namespace {
                     Deck* src = deckByName(received[i+ 1]);
                     CardContainer* dest = containerByName(received[i+ 2], sender);
                     if ( dest == nullptr || src == nullptr ) throw CriticalError(CRIT__BAD_CONTAINER, "_worker_DECK");
-
                     if ( src->pop_and_move(received[i+ 3], received[i+ 4], dest, received[i+ 5]) != 0 ) throw CriticalError(CRIT__EMPTY_DECK, "_worker_DECK");
+
+                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" drawed Card_"+received[i+ 5]+" from "+received[i+ 1]+" to "+received[i+ 2]+"["+std::to_string(dest->Cards.size()-1)+"] (X: "+received[i+ 3]+", Y: "+received[i+ 4]+")"));
                     if ( sender == localplayer ) {
                         ErDeck = NOERROR;
                         flags[DECK_R] = true;
@@ -315,8 +324,9 @@ namespace {
                     CardContainer* src     = containerByName(received[i+ 1], sender);
                     CardContainer* dest    = containerByName(received[i+ 3], sender);
                     if ( dest == nullptr || src == nullptr ) throw CriticalError(CRIT__BAD_CONTAINER, "_worker_MOVE");
-
                     if ( src->move(received[i+ 2], received[i+ 4], received[i+ 5], dest, received[i+ 6]) != 0 ) throw CriticalError(CRIT__NUM_ERROR, "_worker_MOVE");
+
+                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" moved Card_"+received[i+ 6]+" from "+received[i+ 1]+"["+received[i+ 2]+"] to "+received[i+ 3]+"["+std::to_string(dest->Cards.size()-1)+"] (X: "+received[i+ 4]+", Y: "+received[i+ 5]+")"));
                     if ( sender == localplayer ) {
                         ErMove = NOERROR;
                         flags[MOVE_R] = true;
@@ -327,6 +337,7 @@ namespace {
                     if ( container == nullptr ) throw CriticalError(CRIT__BAD_CONTAINER, "_worker_ROTATE");
                     container->rotate(received[i+ 2], received[i+ 3]);
 
+                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" rotated Card_"+container->at(received[i+ 2])->unparse_card()+" on "+received[i+ 1]+"["+received[i+ 2]+"] (Rot: "+received[i+ 3]+")"));
                     if ( sender == localplayer ) {
                         ErRot = NOERROR;
                         flags[ROT_R] = true;
@@ -334,17 +345,21 @@ namespace {
                 } else if ( received[i] == "FLIP" ) { // FLIP <spatial> <card_id> <card>
                     size += 3; CHECK_SIZE;
                     CardContainer* container = spatialByName(received[i+ 1], sender);
-                    Card* card = (*container)[received[i+ 2]];
+                    Card* card = container->at(received[i+ 2]);
+                    std::string old_num = card->unparse_card();
                     if ( container == nullptr ) throw CriticalError(CRIT__BAD_CONTAINER, "_worker_FLIP");
                     else if ( card == nullptr ) throw CriticalError(CRIT__NUM_ERROR, "_worker_FLIP");
                     else if ( card->parse_card(received[i+ 3]) == -1 ) throw CriticalError(CRIT__BAD_CARD, "_worker_FLIP");
 
+                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" flipped Card on "+received[i+ 1]+"["+received[i+ 2]+"] ("+old_num+" -> "+card->unparse_card()+")"));
                     if ( sender == localplayer ) {
                         ErFlip = NOERROR;
                         flags[FLIP_R] = true;
                     }
                 } else if ( received[i] == "SHUFFLE" ) { // SHUFFLE <deck>
                     size += 1; CHECK_SIZE;
+
+                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" shuffled "+received[i+ 1]));
                     if ( sender == localplayer ) {
                         flags[SHUF_S] = true;
                         flags[SHUF_R] = true;
@@ -356,6 +371,7 @@ namespace {
                         throw CriticalError(CRIT__BAD_STAT, "_worker_SET");
                     } else *Stat = received[i+ 2];
 
+                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" set "+received[i+ 1]+" to "+received[i+ 2]));
                     if ( sender == localplayer ) {
                         ErSet = NOERROR;
                         flags[SET_R] = true;
@@ -363,6 +379,7 @@ namespace {
                 } else if ( received[i] == "RENAME" ) { // RENAME <new_name>
                     size += 1; CHECK_SIZE;
                     sender->Name = received[i+ 1];
+                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" renamed to "+received[i+ 1]));
                 } else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_NOTIFY");
             } else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker");
             for ( int _ = 0 ; _ < size ; _++ ) received.pop_front();

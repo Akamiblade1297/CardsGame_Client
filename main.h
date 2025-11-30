@@ -95,6 +95,9 @@ public:
     return &Cards[i];
   }
 
+  Card* at ( std::string si ) {
+      return operator[](si);
+  }
   /**
    * @brief Push card to container
    * @param card Card

@@ -25,23 +25,17 @@ public:
      */
     std::pair<bool, std::string> conInterpret ( std::string command );
 
-    /**
-     * @brief Send string to ConsoleOut
-     * @param text
-     */
-    void conOut ( std::string text );
-
-    /**
-     * @brief Send command to ConsoleIn
-     * @param command
-     */
-    void conIn ( std::string command );
+signals:
+    void consoleOut ( QString text );
+    void consoleIn ( QString command );
 
 private slots:
   void on_action_Exit_triggered();
   void toggle_widget( bool checked );
 
   void on_ConsoleIn_returnPressed();
+  void conOut ( QString text );
+  void conIn ( QString command );
 
 private:
   Ui::MainWindow *ui;
@@ -49,4 +43,6 @@ private:
 
   std::vector<std::string> parse_cmd ( std::string& command );
 };
+
+extern MainWindow* mainWindow;
 #endif // MAINWINDOW_H
