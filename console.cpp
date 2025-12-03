@@ -798,7 +798,7 @@ void MainWindow::conIn ( QString command, bool user ) {
     conOut("> "+command);
     if ( user ) {
         scrollLocked = false;
-        std::ofstream conHistory(CONHISTORY, std::ios::app | std::ios::ate);
+        std::ofstream conHistory(CONHISTORY, std::ios::app | std::ios::ate | std::ios::binary );
         if ( conHistory ) {
             if ( !command.isEmpty() ) conHistory << command.toStdString() << '\n';
             conPatternSet = false;
@@ -841,7 +841,7 @@ void MainWindow::conHistoryFind ( bool up ) {
         conPattern = ui->ConsoleIn->text().toStdString();
         conPatternSet = true;
     }
-    std::ifstream conHistory(CONHISTORY);
+    std::ifstream conHistory(CONHISTORY, std::ios::binary);
     conHistory.seekg(historyGetPointer);
     std::string line;
     bool reachedBounds;
@@ -851,7 +851,7 @@ void MainWindow::conHistoryFind ( bool up ) {
         historyGetPointer = conHistory.tellg();
         if ( reachedBounds ) break;
 
-        conHistory.seekg(1, std::ios::cur); // Make sure it doesn't read first '\n' character
+        if ( conHistory.peek() == '\n' ) conHistory.seekg(1, std::ios::cur); // Make sure it doesn't read first '\n' character
         std::getline(conHistory, line);
         conHistory.seekg(historyGetPointer);
     } while ( line.substr(0, conPattern.size() ) != conPattern );

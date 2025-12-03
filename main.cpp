@@ -38,7 +38,12 @@ void getGameDirectory () {
     }
 #endif
     if ( !gameDir.empty() ) {
-        gameDir = std::filesystem::path(gameDir).parent_path().string() + '/';
+        gameDir = std::filesystem::path(gameDir).parent_path().string();
+#ifdef _WIN32
+        gameDir += '\\';
+#else
+        gameDir += '/';
+#endif
     }
 
 }
