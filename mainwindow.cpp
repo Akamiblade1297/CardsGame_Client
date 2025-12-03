@@ -26,7 +26,7 @@ MainWindow::MainWindow (QWidget *parent)
   // Setup console vars
   conPatternSet = false;
   scrollLocked  = false;
-  std::ifstream conHistory(gameDir+CONHISTORY, std::ios::ate);
+  std::ifstream conHistory(CONHISTORY, std::ios::ate);
   historyGetPointer = (int)conHistory.tellg()-1;
   historyGetPointerMax = historyGetPointer;
   conHistory.close();

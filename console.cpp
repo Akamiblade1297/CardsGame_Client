@@ -172,7 +172,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
 
         ans = "CLEAR";
         success = true;
-    } else if ( cmd.size() >= 2 && cmd[1] == "clear-history" ) { // clear-history
+    } else if ( cmd.size() >= 2 && cmd[1] == "clear-his" ) { // clear-his
         cmdsize = 2;
         std::ofstream conHistory(CONHISTORY, std::ios::trunc);
         conHistory.close();
@@ -731,7 +731,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         answer << "printall"                               << "\t\t\t" << "Вывести все переменные и их содерживое"                       << '\n';
         answer << "history"                                << "\t\t\t" << "Вывести историю комманд"                                      << '\n';
         answer << "clear"                                  << "\t\t\t" << "Очистить консоль"                                             << '\n';
-        answer << "clear-history"                          << "\t\t"   << "Очистить историю отправленных комманд"                        << '\n';
+        answer << "clear-his"                              << "\t\t\t" << "Очистить историю отправленных комманд"                        << '\n';
         answer << "connect [address] [port]"               << "\t"     << "Подключиться к серверу по аддресу address:port"               << '\n';
         answer << "join [name]"                            << "\t\t\t" << "Присоединиться к игре как name"                               << '\n';
         answer << "rejoin [pass]"                          << "\t\t"   << "Перезайти к игре через пароль pass"                           << '\n';
