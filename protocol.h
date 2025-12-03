@@ -8,7 +8,7 @@
 namespace protocol {
     extern Player* localplayer;
 
-    class CriticalError;
+    class ProtocolCriticalError;
 
     enum CritErrorCode {
         CRIT__UNEXPECTED_RESPONSE,
@@ -33,7 +33,7 @@ namespace protocol {
         NOT_FOUND    = -3,
         TIMEOUT      = -2,
         BAD_REQ      = -1,
-        NOERROR      =  0,
+        _NOERROR     =  0,
         RENAME       =  1,
     };
 

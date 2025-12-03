@@ -50,11 +50,15 @@ else()
     else()
         add_executable(CardsGame_Client
             ${PROJECT_SOURCES}
+
         )
     endif()
 endif()
 
 target_link_libraries(CardsGame_Client PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+if (WIN32)
+    target_link_libraries(CardsGame_Client PRIVATE ws2_32)
+endif()
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

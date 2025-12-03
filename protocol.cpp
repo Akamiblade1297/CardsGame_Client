@@ -9,7 +9,6 @@
 #include <cstring>
 #include <stdexcept>
 #include <random>
-#include <sys/socket.h>
 #include <thread>
 #include <chrono>
 #include <bitset>
@@ -69,7 +68,7 @@ namespace {
 namespace protocol {
     Player* localplayer = nullptr;
 
-    class CriticalError : public std::runtime_error {
+    class ProtocolCriticalError : public std::runtime_error {
         private:
             CritErrorCode code;
             static std::string str_code ( CritErrorCode cod ) {
@@ -95,7 +94,7 @@ namespace protocol {
                 }
             }
         public:
-            CriticalError ( CritErrorCode cod, std::string breakpoint ) : code(cod), std::runtime_error(str_code(cod)+' '+breakpoint) {
+            ProtocolCriticalError ( CritErrorCode cod, std::string breakpoint ) : code(cod), std::runtime_error(str_code(cod)+' '+breakpoint) {
                 flags[JOINED] = false;
                 conn->Close();
             }
@@ -143,6 +142,7 @@ namespace {
             if ( received[0] == "JOIN" ) { // JOIN <player>
                 size = 2; CHECK_SIZE;
 
+                emit mainWindow->consoleOut(QString::fromStdString(received[1]+" joined the server"));
                 if ( !playerMgr.playerByName(received[1]) ) {
                     Player new_player(received[1]);
                     playerMgr.Players.push_back(new_player);
@@ -159,13 +159,13 @@ namespace {
                 size = 2; CHECK_SIZE;
                 if      ( received[1] == "OUT OF RANGE" ) ErRoll = OUT_OF_RNG;
                 else if ( received[1] == "NOT A NUMBER" ) ErRoll = NOT_A_NUM;
-                else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_ROLL_ERR");
+                else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_ROLL_ERR");
                 flags[ROLL_R] = true;
             } else if ( received[0] == "DECK_ERR" ) { // DECK_ERR <error>
                 size = 2; CHECK_SIZE;
                 if      ( received[1] == "NOT FOUND" ) ErDeck = NOT_FOUND;
                 else if ( received[1] == "EMPTY"     ) ErDeck = EMPTY;
-                else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_DECK_ERR");
+                else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_DECK_ERR");
                 flags[DECK_R] = true;
             } else if ( received[0] == "MOVE_ERR" ) { // MOVE_ERR <error>
                 size = 2; CHECK_SIZE;
@@ -173,21 +173,21 @@ namespace {
                 else if ( received[1] == "NOT A NUMBER" ) ErMove = NOT_A_NUM;
                 else if ( received[1] == "NOT FOUND"    ) ErMove = NOT_FOUND;
                 else if ( received[1] == "EMPTY"        ) ErMove = EMPTY;
-                else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_MOVE_ERR");
+                else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_MOVE_ERR");
                 flags[MOVE_R] = true;
             } else if ( received[0] == "ROTATE_ERR" ) { // ROTATE_ERR <error>
                 size = 2; CHECK_SIZE;
                 if      ( received[1] == "OUT OF RANGE" ) ErRot = OUT_OF_RNG;
                 else if ( received[1] == "NOT A NUMBER" ) ErRot = NOT_A_NUM;
                 else if ( received[1] == "NOT FOUND"    ) ErRot = NOT_FOUND;
-                else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_ROTATE_ERR");
+                else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_ROTATE_ERR");
                 flags[ROT_R] = true;
             } else if ( received[0] == "FLIP_ERR" ) { // FLIP_ERR <error>
                 size = 2; CHECK_SIZE;
                 if      ( received[1] == "OUT OF RANGE" ) ErFlip = OUT_OF_RNG;
                 else if ( received[1] == "NOT A NUMBER" ) ErFlip = NOT_A_NUM;
                 else if ( received[1] == "NOT FOUND"    ) ErFlip = NOT_FOUND;
-                else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_FLIP_ERR");
+                else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_FLIP_ERR");
                 flags[FLIP_R] = true;
             } else if ( received[0] == "SHUFFLE_ERR" ) { // SHUFFLE_ERR
                 size = 1;
@@ -198,7 +198,7 @@ namespace {
                 if      ( received[1] == "OUT OF RANGE" ) ErSet = OUT_OF_RNG;
                 else if ( received[1] == "NOT A NUMBER" ) ErSet = NOT_A_NUM;
                 else if ( received[1] == "NOT FOUND"    ) ErSet = NOT_FOUND;
-                else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_SET_ERR");
+                else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_SET_ERR");
                 flags[SET_R] = true;
             } else if ( received[0] == "SEE_ERR" ) { // SEE_ERR
                 size = 1;
@@ -229,7 +229,7 @@ namespace {
                 for ( int i = 4 ; i < size ; i++ ) message += received[i] + " ";
                 emit mainWindow->consoleOut(QString::fromStdString(message));
 
-                ErRoll = NOERROR;
+                ErRoll = _NOERROR;
                 flags[ROLL_R] = true;
             } else if ( received[0] == "SEE" ) { // SEE <card1> <card2> ... <cardn> END
                 size = 2;
@@ -238,14 +238,14 @@ namespace {
                     if ( received[size-1] == "END" ) break;
                     std::vector<std::string> scard = split(received[size-1].data(), ' ');
                     Card card;
-                    if ( card.parse_card(scard[0]) == -1 ) throw CriticalError(CRIT__NUM_ERROR, "_worker_SEE");
+                    if ( card.parse_card(scard[0]) == -1 ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_SEE");
 
                     int x, y, rot;
                     try {
                         x = std::stoi(scard[1]);
                         y = std::stoi(scard[2]);
                         rot = std::stoi(scard[3]);
-                    } catch (std::invalid_argument) {throw CriticalError(CRIT__NUM_ERROR, "_worker_SEE");} catch (std::out_of_range) {throw CriticalError(CRIT__NUM_ERROR, "_worker_SEE");}
+                    } catch (std::invalid_argument) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_SEE");} catch (std::out_of_range) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_SEE");}
                     card.transform(x, y);
                     card.rotate(rot);
                     _see->push_back(card);
@@ -262,14 +262,14 @@ namespace {
                     if ( received[size-1] == "END" ) break;
                     std::vector<std::string> scard = split(received[size-1].data(), ' ');
                     Card card;
-                    if ( card.parse_card(scard[0]) == -1 ) throw CriticalError(CRIT__NUM_ERROR, "_worker_CARDS");
+                    if ( card.parse_card(scard[0]) == -1 ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_CARDS");
 
                     int x, y, rot;
                     try {
                         x = std::stoi(scard[1]);
                         y = std::stoi(scard[2]);
                         rot = std::stoi(scard[3]);
-                    } catch (std::invalid_argument) {throw CriticalError(CRIT__NUM_ERROR, "_worker_CARDS");} catch (std::out_of_range) {throw CriticalError(CRIT__NUM_ERROR, "_worker_CARDS");}
+                    } catch (std::invalid_argument) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_CARDS");} catch (std::out_of_range) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_CARDS");}
                     card.transform(x, y);
                     card.rotate(rot);
                     _cards->push_back(card);
@@ -305,41 +305,41 @@ namespace {
                 size = 3; CHECK_SIZE;
                 Player* sender = playerMgr.playerByName(received[1]) ;
                 constexpr int i = 2;
-                if ( sender == nullptr ) throw CriticalError(CRIT__INVALID_PLAYER, "_worker_NOTIFY");
+                if ( sender == nullptr ) throw ProtocolCriticalError(CRIT__INVALID_PLAYER, "_worker_NOTIFY");
 
                 if ( received[i] == "DECK" ) { // DECK <deck src> <dest> <x> <y> <card>
                     size += 5; CHECK_SIZE;
                     Deck* src = deckByName(received[i+ 1]);
                     CardContainer* dest = containerByName(received[i+ 2], sender);
-                    if ( dest == nullptr || src == nullptr ) throw CriticalError(CRIT__BAD_CONTAINER, "_worker_DECK");
-                    if ( src->pop_and_move(received[i+ 3], received[i+ 4], dest, received[i+ 5]) != 0 ) throw CriticalError(CRIT__EMPTY_DECK, "_worker_DECK");
+                    if ( dest == nullptr || src == nullptr ) throw ProtocolCriticalError(CRIT__BAD_CONTAINER, "_worker_DECK");
+                    if ( src->pop_and_move(received[i+ 3], received[i+ 4], dest, received[i+ 5]) != 0 ) throw ProtocolCriticalError(CRIT__EMPTY_DECK, "_worker_DECK");
 
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" drawed Card_"+received[i+ 5]+" from "+received[i+ 1]+" to "+received[i+ 2]+"["+std::to_string(dest->Cards.size()-1)+"] (X: "+received[i+ 3]+", Y: "+received[i+ 4]+")"));
                     if ( sender == localplayer ) {
-                        ErDeck = NOERROR;
+                        ErDeck = _NOERROR;
                         flags[DECK_R] = true;
                     }
                 } else if ( received[i] == "MOVE" ) { // MOVE <spatial src> <card_id> <dest> <x> <y> <card>
                     size += 6; CHECK_SIZE;
                     CardContainer* src     = containerByName(received[i+ 1], sender);
                     CardContainer* dest    = containerByName(received[i+ 3], sender);
-                    if ( dest == nullptr || src == nullptr ) throw CriticalError(CRIT__BAD_CONTAINER, "_worker_MOVE");
-                    if ( src->move(received[i+ 2], received[i+ 4], received[i+ 5], dest, received[i+ 6]) != 0 ) throw CriticalError(CRIT__NUM_ERROR, "_worker_MOVE");
+                    if ( dest == nullptr || src == nullptr ) throw ProtocolCriticalError(CRIT__BAD_CONTAINER, "_worker_MOVE");
+                    if ( src->move(received[i+ 2], received[i+ 4], received[i+ 5], dest, received[i+ 6]) != 0 ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_MOVE");
 
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" moved Card_"+received[i+ 6]+" from "+received[i+ 1]+"["+received[i+ 2]+"] to "+received[i+ 3]+"["+std::to_string(dest->Cards.size()-1)+"] (X: "+received[i+ 4]+", Y: "+received[i+ 5]+")"));
                     if ( sender == localplayer ) {
-                        ErMove = NOERROR;
+                        ErMove = _NOERROR;
                         flags[MOVE_R] = true;
                     }
                 } else if ( received[i] == "ROTATE" ) { // ROTATE <spatial> <card_id> <rot>
                     size += 3; CHECK_SIZE;
                     CardContainer* container = spatialByName(received[i+ 1], sender);
-                    if ( container == nullptr ) throw CriticalError(CRIT__BAD_CONTAINER, "_worker_ROTATE");
+                    if ( container == nullptr ) throw ProtocolCriticalError(CRIT__BAD_CONTAINER, "_worker_ROTATE");
                     container->rotate(received[i+ 2], received[i+ 3]);
 
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" rotated Card_"+container->at(received[i+ 2])->unparse_card()+" on "+received[i+ 1]+"["+received[i+ 2]+"] (Rot: "+received[i+ 3]+")"));
                     if ( sender == localplayer ) {
-                        ErRot = NOERROR;
+                        ErRot = _NOERROR;
                         flags[ROT_R] = true;
                     }
                 } else if ( received[i] == "FLIP" ) { // FLIP <spatial> <card_id> <card>
@@ -347,13 +347,13 @@ namespace {
                     CardContainer* container = spatialByName(received[i+ 1], sender);
                     Card* card = container->at(received[i+ 2]);
                     std::string old_num = card->unparse_card();
-                    if ( container == nullptr ) throw CriticalError(CRIT__BAD_CONTAINER, "_worker_FLIP");
-                    else if ( card == nullptr ) throw CriticalError(CRIT__NUM_ERROR, "_worker_FLIP");
-                    else if ( card->parse_card(received[i+ 3]) == -1 ) throw CriticalError(CRIT__BAD_CARD, "_worker_FLIP");
+                    if ( container == nullptr ) throw ProtocolCriticalError(CRIT__BAD_CONTAINER, "_worker_FLIP");
+                    else if ( card == nullptr ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_FLIP");
+                    else if ( card->parse_card(received[i+ 3]) == -1 ) throw ProtocolCriticalError(CRIT__BAD_CARD, "_worker_FLIP");
 
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" flipped Card on "+received[i+ 1]+"["+received[i+ 2]+"] ("+old_num+" -> "+card->unparse_card()+")"));
                     if ( sender == localplayer ) {
-                        ErFlip = NOERROR;
+                        ErFlip = _NOERROR;
                         flags[FLIP_R] = true;
                     }
                 } else if ( received[i] == "SHUFFLE" ) { // SHUFFLE <deck>
@@ -368,25 +368,25 @@ namespace {
                     size += 2; CHECK_SIZE;
                     std::string* Stat = StatByName(received[i+ 1], sender);
                     if ( Stat == nullptr ) {
-                        throw CriticalError(CRIT__BAD_STAT, "_worker_SET");
+                        throw ProtocolCriticalError(CRIT__BAD_STAT, "_worker_SET");
                     } else *Stat = received[i+ 2];
 
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" set "+received[i+ 1]+" to "+received[i+ 2]));
                     if ( sender == localplayer ) {
-                        ErSet = NOERROR;
+                        ErSet = _NOERROR;
                         flags[SET_R] = true;
                     }
                 } else if ( received[i] == "RENAME" ) { // RENAME <new_name>
                     size += 1; CHECK_SIZE;
                     sender->Name = received[i+ 1];
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" renamed to "+received[i+ 1]));
-                } else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_NOTIFY");
-            } else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker");
+                } else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker_NOTIFY");
+            } else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "_worker");
             for ( int _ = 0 ; _ < size ; _++ ) received.pop_front();
         }
     }
     void _receiver () {
-        if ( ! flags[JOINED] ) throw CriticalError(CRIT__NOT_JOINED, "_receiver");
+        if ( ! flags[JOINED] ) throw ProtocolCriticalError(CRIT__NOT_JOINED, "_receiver");
         while (1) {
             int len = conn->Receive(buffer, BUFSIZE);
             if ( len <= 0 ) {
@@ -403,7 +403,7 @@ namespace {
         }
     }
     void _join ( std::string username ) {
-        if ( flags[JOINED] ) throw CriticalError(CRIT__ALREADY_JOINED, "_join");
+        if ( flags[JOINED] ) throw ProtocolCriticalError(CRIT__ALREADY_JOINED, "_join");
         flags[JOINED] = true;
 
         localplayer = playerMgr.playerByName(username);
@@ -436,7 +436,7 @@ namespace protocol {
             delete conn;
         bool suc;
         conn = new Connection( ip, port, &suc );
-        return suc ? NOERROR : SEND_ERROR;
+        return suc ? _NOERROR : SEND_ERROR;
     }
     ErrorCode join ( const char* username, char* result ) {
         if ( flags[JOINED] ) return PROTOCOL_ERR;
@@ -447,7 +447,7 @@ namespace protocol {
             if ( conn->Send(temp + DEL + username) == -1 ) return SEND_ERROR;
         }
         int len = conn->Receive(buffer, BUFSIZE);
-        if ( len < 6 ) throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "join"); // min response: "RENAME"
+        if ( len < 6 ) throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "join"); // min response: "RENAME"
         buffer[len] = 0;
         std::cout << buffer << std::endl;
         std::vector<std::string> response = split(buffer, DEL);
@@ -457,19 +457,19 @@ namespace protocol {
 
             int i = 1;
             std::string pass = parse_pass(buffer, i);
-            if ( pass.size() != 8 ) throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "join_OK");
+            if ( pass.size() != 8 ) throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "join_OK");
             std::memcpy(result, pass.data(), 8);
             for (; i < response.size() ; i++ ) received.push_back(response[i]);
             _join(username);
 
-            return NOERROR;
+            return _NOERROR;
         } else if ( response.size() == 1 && response[0] == "RENAME"  ) { // RENAME
             flags[RENAMING] = true;
             return RENAME;
         } else if ( response.size() == 1 && response[0] == "TIMEOUT" ) { // TIMEOUT
             flags[RENAMING] = false;
             return TIMEOUT;
-        } else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "join");
+        } else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "join");
     }
     ErrorCode rejoin ( const char* pass ) {
         std::string temp = "REJOIN";
@@ -477,17 +477,17 @@ namespace protocol {
         temp.append(pass, 8);
         if ( conn->Send(temp) == -1 ) return SEND_ERROR;
         int len = conn->Receive(buffer, BUFSIZE);
-        if ( len < 2 ) throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "rejoin");
+        if ( len < 2 ) throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "rejoin");
         buffer[len] = 0;
         std::vector<std::string> response = split(buffer, DEL);
 
         if ( response[0] == "OK" ) {
             for ( int i = 2 ; i < response.size() ; i++ ) received.push_back(response[i]);
             _join(response[1]);
-            return NOERROR;
+            return _NOERROR;
         }
         else if ( response[0] == "NOT FOUND" ) return NOT_FOUND;
-        else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "rejoin");
+        else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "rejoin");
     }
     ErrorCode ping ( int& time, int timeout ) {
         uint64_t dat = dis(rng);
@@ -512,19 +512,19 @@ namespace protocol {
 
         if ( std::strcmp(data, ping_data) == 0 ) {
             time = timeout - time;
-            return NOERROR;
+            return _NOERROR;
         }
-        else throw CriticalError(CRIT__UNEXPECTED_RESPONSE, "ping");
+        else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "ping");
     }
     ErrorCode chat ( std::string msg ) {
         std::string temp = "CHAT";
         if ( conn->Send(temp + DEL + msg) == -1 ) return SEND_ERROR;
-        return NOERROR;
+        return _NOERROR;
     }
     ErrorCode action ( std::string act ) {
         std::string temp = "ACT";
         if ( conn->Send(temp + DEL + act) == -1 ) return SEND_ERROR;
-        return NOERROR;
+        return _NOERROR;
     }
     ErrorCode whisper ( std::string player, std::string msg ) {
         std::lock_guard<std::mutex> lock(muWhisper);       
@@ -536,7 +536,7 @@ namespace protocol {
         while ( !flags[WHIS_R] ) {}
 
         if ( !flags[WHIS_S] ) return NOT_FOUND;
-        return NOERROR;
+        return _NOERROR;
     }
     ErrorCode roll ( std::string dice, std::string num) {
         std::lock_guard<std::mutex> lock(muRoll);
@@ -591,7 +591,7 @@ namespace protocol {
 
         flags[SHUF_R] = false;
         while ( !flags[SHUF_R] ) {}
-        return flags[SHUF_S] ? NOERROR : NOT_FOUND;
+        return flags[SHUF_S] ? _NOERROR : NOT_FOUND;
     }
     ErrorCode set ( std::string stat, std::string value ) {
         std::lock_guard<std::mutex> lock(muSet);
@@ -605,7 +605,7 @@ namespace protocol {
     ErrorCode rename ( std::string name ) {
         std::string temp = "RENAME";
         if ( conn->Send(temp+DEL+name ) == -1 ) return SEND_ERROR;
-        else return NOERROR;
+        else return _NOERROR;
     }
     ErrorCode see ( std::string container, std::vector<Card>* res ) {
         std::lock_guard<std::mutex> lock(muSee);
@@ -616,7 +616,7 @@ namespace protocol {
 
         flags[SEE_R] = false;
         while ( ! flags[SEE_R] ) {}
-        return flags[SEE_S] ? NOERROR : NOT_FOUND;
+        return flags[SEE_S] ? _NOERROR : NOT_FOUND;
     }
     ErrorCode cards ( std::string container, std::vector<Card>* res ) {
         std::lock_guard<std::mutex> lock(muCards);
@@ -627,7 +627,7 @@ namespace protocol {
 
         flags[CRDS_R] = false;
         while ( ! flags[CRDS_R] ) {}
-        return flags[CRDS_S] ? NOERROR : NOT_FOUND;
+        return flags[CRDS_S] ? _NOERROR : NOT_FOUND;
     }
     ErrorCode stat ( std::string player, std::string* res ) {
         std::lock_guard<std::mutex> lock(muStat);
@@ -638,7 +638,7 @@ namespace protocol {
 
         flags[STAT_R] = false;
         while ( ! flags[STAT_R] ) {}
-        return flags[STAT_S] ? NOERROR : NOT_FOUND;
+        return flags[STAT_S] ? _NOERROR : NOT_FOUND;
     }
     ErrorCode players ( std::vector<std::string>* res ) {
         std::lock_guard<std::mutex> lock(muPlayers);
@@ -648,6 +648,6 @@ namespace protocol {
 
         flags[PLRS_R] = false;
         while ( ! flags[PLRS_R] ) {}
-        return NOERROR;
+        return _NOERROR;
     }
 }

@@ -31,11 +31,10 @@ public:
     WSAData wsaData;
     WORD DllVersion = MAKEWORD(2,2);
     if ( WSAStartup(DllVersion, &wsaData) != 0 ) exit(1);
-  }
 #else
   signal(SIGPIPE, SIG_IGN);
 #endif
-    }
+  }
   /**
    * @brief Connection constructor
    *

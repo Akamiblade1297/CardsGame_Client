@@ -2,27 +2,70 @@
 #include "./ui_mainwindow.h"
 #include <string>
 #include <QScrollBar>
+#include <QShortcut>
 
 #define TABL_ENABLED false
 #define CHAT_ENABLED false
 #define CONS_ENABLED true
 #define SERV_ENABLED false
 
-namespace{
-    QScrollBar* bar;
-        void scrollToBottom () {
-        bar->setValue(bar->maximum());
-    }
-}
-
 MainWindow::MainWindow (QWidget *parent)
     : QMainWindow (parent), ui (new Ui::MainWindow)
 {
   ui->setupUi (this);
 
-  bar = ui->ConsoleScrollArea->verticalScrollBar();
-  QObject::connect(bar, &QScrollBar::rangeChanged, scrollToBottom);
+  // Console scroll down automaticly
+  QScrollBar* bar = ui->ConsoleScrollArea->verticalScrollBar();
+  connect(bar, &QScrollBar::rangeChanged, this, &MainWindow::on_ConsoleVerticalScrollbar_rangeChanged);
+  connect(bar, &QScrollBar::valueChanged, this, &MainWindow::on_ConsoleVerticalScrollbar_valueChanged);
 
+  // Connect custom console signals
+  connect(this, &MainWindow::consoleOut, this, &MainWindow::conOut);
+  connect(this, &MainWindow::consoleIn, this, &MainWindow::conIn);
+
+  // Setup console vars
+  conPatternSet = false;
+  scrollLocked  = false;
+  std::ifstream conHistory(gameDir+CONHISTORY, std::ios::ate);
+  historyGetPointer = (int)conHistory.tellg()-1;
+  historyGetPointerMax = historyGetPointer;
+  conHistory.close();
+
+  // Shortcuts
+  QShortcut* shortConsoleClear  = new QShortcut(QKeySequence("Ctrl+L"), ui->ConsoleIn);
+  QShortcut* shortConsoleCancel = new QShortcut(QKeySequence("Ctrl+U"), ui->ConsoleIn);
+  QShortcut* shortConsoleStart  = new QShortcut(QKeySequence("Ctrl+A"), ui->ConsoleIn);
+  QShortcut* shortConsoleEnd    = new QShortcut(QKeySequence("Ctrl+E"), ui->ConsoleIn);
+  QShortcut* shortConsoleHistoryUp   = new QShortcut(QKeySequence(Qt::Key_Up  ), ui->ConsoleIn);
+  QShortcut* shortConsoleHistoryDown = new QShortcut(QKeySequence(Qt::Key_Down), ui->ConsoleIn);
+
+  shortConsoleClear ->setContext(Qt::WidgetShortcut);
+  shortConsoleCancel->setContext(Qt::WidgetShortcut);
+  shortConsoleStart ->setContext(Qt::WidgetShortcut);
+  shortConsoleEnd   ->setContext(Qt::WidgetShortcut);
+  shortConsoleHistoryUp  ->setContext(Qt::WidgetShortcut);
+  shortConsoleHistoryDown->setContext(Qt::WidgetShortcut);
+
+  connect(shortConsoleClear, &QShortcut::activated, this, [this]{
+      this->ui->ConsoleOut->clear();
+  });
+  connect(shortConsoleCancel, &QShortcut::activated, this, [this]{
+      this->ui->ConsoleIn->clear();
+  });
+  connect(shortConsoleStart, &QShortcut::activated, this, [this]{
+    this->ui->ConsoleIn->setCursorPosition(0);
+  });
+  connect(shortConsoleEnd, &QShortcut::activated, this, [this]{
+    this->ui->ConsoleIn->setCursorPosition(this->ui->ConsoleIn->text().length());
+  });
+  connect(shortConsoleHistoryUp, &QShortcut::activated, this, [this]{
+      this->conHistoryFind(true);
+  });
+  connect(shortConsoleHistoryDown, &QShortcut::activated, this, [this]{
+      this->conHistoryFind(false);
+  });
+
+  // Splitter stretch factors
   ui->splitter_TaSL->setStretchFactor(0,3);
   ui->splitter_TaSL->setStretchFactor(1,1);
 
@@ -32,13 +75,11 @@ MainWindow::MainWindow (QWidget *parent)
   ui->splitter_CC->setStretchFactor(0,1);
   ui->splitter_CC->setStretchFactor(1,1);
 
+  // Menubar actions
   connect(ui->action_Chat,        SIGNAL(toggled(bool)), this, SLOT(toggle_widget(bool)));
   connect(ui->action_Table,       SIGNAL(toggled(bool)), this, SLOT(toggle_widget(bool)));
   connect(ui->action_Console,     SIGNAL(toggled(bool)), this, SLOT(toggle_widget(bool)));
   connect(ui->action_ServerList,  SIGNAL(toggled(bool)), this, SLOT(toggle_widget(bool)));
-
-  connect(this, &MainWindow::consoleOut, this, &MainWindow::conOut);
-  connect(this, &MainWindow::consoleIn, this, &MainWindow::conIn);
 
   ui->action_Table     ->setChecked(TABL_ENABLED);ui->Table     ->setVisible(TABL_ENABLED);
   ui->action_Chat      ->setChecked(CHAT_ENABLED);ui->Chat      ->setVisible(CHAT_ENABLED);
@@ -65,3 +106,4 @@ void MainWindow::toggle_widget ( bool checked ) {
       ui->ServerList->setVisible(checked);
   }
 }
+
