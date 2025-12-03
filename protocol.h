@@ -5,6 +5,8 @@
 #include "network.h"
 #include "main.h"
 
+#define LOCALPLAYER playerMgr.Players[0]
+
 namespace protocol {
     extern Player* localplayer;
 
@@ -140,7 +142,7 @@ namespace protocol {
     /**
      * @brief Rename localplayer
      * @param name New name
-     * @return NOERROR, SEND_ERROR
+     * @return NOERROR, RENAME, SEND_ERROR
      */
     ErrorCode rename ( std::string name );
     /**

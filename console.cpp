@@ -61,7 +61,7 @@ std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
                     if ( flags[VAR] ) {
                         int b = v-s-1;
                         std::string var = quoted.substr(b, quoted.size()-b);
-                        quoted = quoted.substr(0, b-1) + conVars[var] ;
+                        quoted = quoted.substr(0, b-1) + conVars[var];
                     }
                     res.push_back(quoted);
                     flags[QUOTED] = true;
@@ -566,6 +566,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 ans = "Renamed to "+cmd[2];
                 success = true;
                 break;
+            case protocol::RENAME:
+                ans = "ERROR: There is already a player named \""+cmd[2]+'"';
+                success = false;
+                break;
             case protocol::SEND_ERROR:
                 ans = "ERROR: Failed to send";
                 success = false;
@@ -578,7 +582,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
     } else if ( cmd.size() >= 3 && cmd[1] == "see" ) { // see [visible]
         cmdsize = 3;
 
-        CardContainer* spatial = spatialByName(cmd[2], protocol::localplayer);
+        CardContainer* spatial = spatialByName(cmd[2], &LOCALPLAYER);
         Player* plr = playerMgr.playerByName(cmd[2]);
         std::vector<Card>* cards = nullptr;
 
@@ -853,7 +857,6 @@ void MainWindow::conHistoryFind ( bool up ) {
     } while ( line.substr(0, conPattern.size() ) != conPattern );
 
     if ( !reachedBounds ) ui->ConsoleIn->setText(QString::fromStdString(line));
-    std::cout << std::endl;
     conHistory.close();
 }
 
