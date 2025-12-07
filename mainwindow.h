@@ -6,7 +6,7 @@
 #include <fstream>
 
 #define CONHISTORY gameDir+".console_history"
-#define CHAT_CMDS { "/act", "/me", "/whisper", "/roll" }
+#define CHAT_CMDS { "/me", "/whisper", "/roll" }
 
 QT_BEGIN_NAMESPACE
 namespace Ui

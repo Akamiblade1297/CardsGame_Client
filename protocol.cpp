@@ -224,7 +224,7 @@ namespace {
             } else if ( received[0] == "ACT" ) { // ACT <player> <action>
                 size = 3; CHECK_SIZE;
                 emit mainWindow->consoleOut(QString::fromStdString(received[1]+" *"+received[2]+"*"));
-                emit mainWindow->chatOut(QString::fromStdString("<i><font color="+playerMgr.playerByName(received[1])->Color+'>'+received[1]+"</font> "+received[2]+"</i>"));
+                emit mainWindow->chatOut(QString::fromStdString("<i>"+received[1]+' '+received[2]+"</i>"));
             } else if ( received[0] == "WHISPER" ) { // WHISPER <sender> <message>
                 size = 3; CHECK_SIZE;
                 emit mainWindow->consoleOut(QString::fromStdString(received[1]+" whispered: \""+received[2]+"\""));

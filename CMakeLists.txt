@@ -23,11 +23,14 @@ set(PROJECT_SOURCES
         protocol.cpp
         console.cpp
         functions.h
+        chat.cpp
+        chatcompleter.cpp
         string_func.h
         mainwindow.h 
         protocol.h
         network.h
         main.h
+        chatcompleter.h
         mainwindow.ui
 )
 
@@ -50,12 +53,6 @@ else()
     else()
         add_executable(CardsGame_Client
             ${PROJECT_SOURCES}
-            chat.cpp
-            chatcompleter.h chatcompleter.cpp
-
-
-
-
         )
     endif()
 endif()

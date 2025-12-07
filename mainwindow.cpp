@@ -4,7 +4,7 @@
 #include <string>
 #include <QScrollBar>
 #include <QShortcut>
-#include <QDesktopWidget>
+#include <QScreen>
 #include <QCompleter>
 #include <QStringListModel>
 
@@ -17,7 +17,7 @@ MainWindow::MainWindow (QWidget *parent)
     : QMainWindow (parent), ui (new Ui::MainWindow)
 {
   ui->setupUi (this);
-  resize(QDesktopWidget().availableGeometry(this).size() * 0.8);
+  resize(screen()->availableGeometry().size() * 0.8);
 
   // Console scroll down automaticly
   QScrollBar* bar = ui->ConsoleScrollArea->verticalScrollBar();
