@@ -1,11 +1,15 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
+#include "chatcompleter.h"
 #include <string>
 #include <QScrollBar>
 #include <QShortcut>
+#include <QDesktopWidget>
+#include <QCompleter>
+#include <QStringListModel>
 
 #define TABL_ENABLED false
-#define CHAT_ENABLED false
+#define CHAT_ENABLED true
 #define CONS_ENABLED true
 #define SERV_ENABLED false
 
@@ -13,6 +17,7 @@ MainWindow::MainWindow (QWidget *parent)
     : QMainWindow (parent), ui (new Ui::MainWindow)
 {
   ui->setupUi (this);
+  resize(QDesktopWidget().availableGeometry(this).size() * 0.8);
 
   // Console scroll down automaticly
   QScrollBar* bar = ui->ConsoleScrollArea->verticalScrollBar();
@@ -31,39 +36,49 @@ MainWindow::MainWindow (QWidget *parent)
   historyGetPointerMax = historyGetPointer;
   conHistory.close();
 
+  // Console custom console signals
+  connect(this, &MainWindow::chatOut, this, &MainWindow::on_chatOut);
+
   // Shortcuts
   QShortcut* shortConsoleClear  = new QShortcut(QKeySequence("Ctrl+L"), ui->ConsoleIn);
-  QShortcut* shortConsoleCancel = new QShortcut(QKeySequence("Ctrl+U"), ui->ConsoleIn);
-  QShortcut* shortConsoleStart  = new QShortcut(QKeySequence("Ctrl+A"), ui->ConsoleIn);
-  QShortcut* shortConsoleEnd    = new QShortcut(QKeySequence("Ctrl+E"), ui->ConsoleIn);
+  // QShortcut* shortConsoleCancel = new QShortcut(QKeySequence("Ctrl+U"), ui->ConsoleIn);
+  // QShortcut* shortConsoleStart  = new QShortcut(QKeySequence("Ctrl+A"), ui->ConsoleIn);
+  // QShortcut* shortConsoleEnd    = new QShortcut(QKeySequence("Ctrl+E"), ui->ConsoleIn);
   QShortcut* shortConsoleHistoryUp   = new QShortcut(QKeySequence(Qt::Key_Up  ), ui->ConsoleIn);
   QShortcut* shortConsoleHistoryDown = new QShortcut(QKeySequence(Qt::Key_Down), ui->ConsoleIn);
 
   shortConsoleClear ->setContext(Qt::WidgetShortcut);
-  shortConsoleCancel->setContext(Qt::WidgetShortcut);
-  shortConsoleStart ->setContext(Qt::WidgetShortcut);
-  shortConsoleEnd   ->setContext(Qt::WidgetShortcut);
+  // shortConsoleCancel->setContext(Qt::WidgetShortcut);
+  // shortConsoleStart ->setContext(Qt::WidgetShortcut);
+  // shortConsoleEnd   ->setContext(Qt::WidgetShortcut);
   shortConsoleHistoryUp  ->setContext(Qt::WidgetShortcut);
   shortConsoleHistoryDown->setContext(Qt::WidgetShortcut);
 
   connect(shortConsoleClear, &QShortcut::activated, this, [this]{
       this->ui->ConsoleOut->clear();
   });
-  connect(shortConsoleCancel, &QShortcut::activated, this, [this]{
-      this->ui->ConsoleIn->clear();
-  });
-  connect(shortConsoleStart, &QShortcut::activated, this, [this]{
-    this->ui->ConsoleIn->setCursorPosition(0);
-  });
-  connect(shortConsoleEnd, &QShortcut::activated, this, [this]{
-    this->ui->ConsoleIn->setCursorPosition(this->ui->ConsoleIn->text().length());
-  });
+  // connect(shortConsoleCancel, &QShortcut::activated, this, [this]{
+      // this->ui->ConsoleIn->clear();
+  // });
+  // connect(shortConsoleStart, &QShortcut::activated, this, [this]{
+    // this->ui->ConsoleIn->setCursorPosition(0);
+  // });
+  // connect(shortConsoleEnd, &QShortcut::activated, this, [this]{
+    // this->ui->ConsoleIn->setCursorPosition(this->ui->ConsoleIn->text().length());
+  // });
   connect(shortConsoleHistoryUp, &QShortcut::activated, this, [this]{
       this->conHistoryFind(true);
   });
   connect(shortConsoleHistoryDown, &QShortcut::activated, this, [this]{
       this->conHistoryFind(false);
   });
+
+  // Chat variables
+  QStringList chat_cmdList = CHAT_CMDS;
+  chatCompleterModel = new QStringListModel(chat_cmdList);
+  ChatCompleter* chatCompleter = new ChatCompleter(chatCompleterModel, ui->ChatIn);
+  chatCompleter->setCompletionMode(QCompleter::PopupCompletion);
+  ui->ChatIn->setCompleter(chatCompleter);
 
   // Splitter stretch factors
   ui->splitter_TaSL->setStretchFactor(0,3);
@@ -106,4 +121,3 @@ void MainWindow::toggle_widget ( bool checked ) {
       ui->ServerList->setVisible(checked);
   }
 }
-

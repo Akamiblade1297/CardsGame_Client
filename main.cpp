@@ -50,7 +50,7 @@ void getGameDirectory () {
 
 int main (int argc, char *argv[])
 {
-  getGameDirectory(); qDebug(gameDir.data());
+  getGameDirectory();
   Connection::NetworkInit();
   QApplication a (argc, argv);
   MainWindow w;

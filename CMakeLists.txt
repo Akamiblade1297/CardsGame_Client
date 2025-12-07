@@ -11,6 +11,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
 set(PROJECT_SOURCES
         main.cpp
@@ -27,9 +30,6 @@ set(PROJECT_SOURCES
         main.h
         mainwindow.ui
 )
-
-add_compile_options(-fsanitize=address)
-add_link_options(-fsanitize=address)
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(CardsGame_Client
@@ -50,6 +50,11 @@ else()
     else()
         add_executable(CardsGame_Client
             ${PROJECT_SOURCES}
+            chat.cpp
+            chatcompleter.h chatcompleter.cpp
+
+
+
 
         )
     endif()
@@ -58,6 +63,9 @@ endif()
 target_link_libraries(CardsGame_Client PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 if (WIN32)
     target_link_libraries(CardsGame_Client PRIVATE ws2_32)
+target_link_libraries(CardsGame_Client PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(CardsGame_Client PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(CardsGame_Client PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 endif()
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

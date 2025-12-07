@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>919</width>
+    <height>643</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -64,20 +64,144 @@
          <property name="enabled">
           <bool>true</bool>
          </property>
-         <layout class="QGridLayout" name="gridLayout_2">
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_3">
-            <property name="text">
-             <string>CHAT</string>
+         <property name="styleSheet">
+          <string notr="true">QWidget {
+	background-color: white;
+	color: black;
+	border: 0px;
+}</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+          <property name="leftMargin">
+           <number>9</number>
+          </property>
+          <property name="topMargin">
+           <number>9</number>
+          </property>
+          <property name="rightMargin">
+           <number>9</number>
+          </property>
+          <property name="bottomMargin">
+           <number>9</number>
+          </property>
+          <item>
+           <widget class="QScrollArea" name="ChatScrollArea">
+            <property name="verticalScrollBarPolicy">
+             <enum>Qt::ScrollBarPolicy::ScrollBarAsNeeded</enum>
+            </property>
+            <property name="horizontalScrollBarPolicy">
+             <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+            </property>
+            <property name="sizeAdjustPolicy">
+             <enum>QAbstractScrollArea::SizeAdjustPolicy::AdjustToContents</enum>
+            </property>
+            <property name="widgetResizable">
+             <bool>true</bool>
             </property>
             <property name="alignment">
-             <set>Qt::AlignmentFlag::AlignCenter</set>
+             <set>Qt::AlignmentFlag::AlignBottom|Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft</set>
             </property>
+            <widget class="QWidget" name="ChatScrollAreaWidgetContents">
+             <property name="geometry">
+              <rect>
+               <x>0</x>
+               <y>0</y>
+               <width>330</width>
+               <height>383</height>
+              </rect>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_7">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <property name="spacing">
+               <number>0</number>
+              </property>
+              <item row="0" column="0">
+               <widget class="QLabel" name="ChatOut">
+                <property name="frameShape">
+                 <enum>QFrame::Shape::NoFrame</enum>
+                </property>
+                <property name="frameShadow">
+                 <enum>QFrame::Shadow::Plain</enum>
+                </property>
+                <property name="lineWidth">
+                 <number>2</number>
+                </property>
+                <property name="midLineWidth">
+                 <number>0</number>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="textFormat">
+                 <enum>Qt::TextFormat::RichText</enum>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
+                </property>
+                <property name="textInteractionFlags">
+                 <set>Qt::TextInteractionFlag::LinksAccessibleByMouse|Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="ChatInWidget" native="true">
+            <property name="styleSheet">
+             <string notr="true">QObject {
+	background-color: white;
+	color: black;
+	border: 1px solid grey;
+}</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_8">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <property name="spacing">
+              <number>0</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QLineEdit" name="ChatIn">
+               <property name="placeholderText">
+                <string>Отправить</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </widget>
           </item>
          </layout>
         </widget>
         <widget class="QWidget" name="Console" native="true">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::StrongFocus</enum>
+         </property>
          <property name="styleSheet">
           <string notr="true">QWidget {
 	background-color: black;
@@ -111,8 +235,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>424</width>
-               <height>351</height>
+               <width>371</width>
+               <height>383</height>
               </rect>
              </property>
              <layout class="QGridLayout" name="gridLayout_6">
@@ -224,9 +348,6 @@ LIST</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
-         <layout class="QGridLayout" name="gridLayout"/>
-        </item>
        </layout>
       </widget>
      </widget>
@@ -238,7 +359,7 @@ LIST</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
+     <width>919</width>
      <height>25</height>
     </rect>
    </property>

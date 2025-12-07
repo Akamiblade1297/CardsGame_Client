@@ -14,20 +14,29 @@
 
 std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
     std::vector<std::string> res = {"SUCCESS"};
-    std::bitset<6> flags = {0};
+    std::bitset<8> flags = {0};
     enum console_parse_flags {
         QUOTE = 0,
         VAR   = 1,
         SPACE = 2,
-        ESC   = 3,
+        SQUOTED=3,
         QUOTED= 4,
         PARTED= 5,
+        SQUOTE= 6,
+        ESC   = 7,
     };
 
     int s = 0;
     int v;
     int i = 0;
     for (; i < command.size() ; i++ ) {
+        if ( flags[ESC] ) {
+            command.erase(command.begin()+i-1, command.begin()+i);
+            i--;
+            flags[ESC] = false;
+            continue;
+        }
+
         if ( command[i] == ' ' ) {
             if ( flags[SPACE] || i == 0 ) {
                 command.erase(i, 1);
@@ -35,28 +44,31 @@ std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
                 continue;
             }
             flags[SPACE] = true;
-            if ( flags[QUOTE] ) {
-                if ( flags[VAR] ) {
+            if ( flags[VAR] ) {
+                if ( flags[QUOTE] ) {
                     flags[VAR] = false;
                     std::string var = conVars[command.substr(v, i-v)];
                     int rsize = i-v+1;
                     command.replace(v-1, rsize, var);
                     i += var.size() - rsize + 1;
+                } else {
+                    flags[VAR] = false;
+                    std::string var = command.substr(v, i-v);
+                    res.push_back(conVars[var]);
+                    s = i+1;
                 }
-            } else if ( !flags[VAR] ) {
+            } else if ( !( flags[QUOTE] || flags[SQUOTE] || flags[QUOTED] || flags[SQUOTED] )) {
                 res.push_back(command.substr(s, i-s));
                 s = i+1;
-            } else {
-                flags[QUOTED] = false;
-                flags[VAR] = false;
-                std::string var = command.substr(v, i-v);
-                res.push_back(conVars[var]);
+            } else if ( flags[QUOTED] || flags[SQUOTED] ) {
                 s = i+1;
+                flags[QUOTED] = false;
+                flags[SQUOTED] = false;
             }
-        } else if ( command[i] == '"' ) {
+        } else if ( command[i] == '"' && ! flags[SQUOTE] ) {
             if ( flags[QUOTE] ) {
                 flags[QUOTE] = false;
-                if ( i != s+1 ) {
+                if ( i > s+1 ) {
                     std::string quoted = command.substr(s+1, i-s-1);
                     if ( flags[VAR] ) {
                         int b = v-s-1;
@@ -66,24 +78,39 @@ std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
                     res.push_back(quoted);
                     flags[QUOTED] = true;
                 }
-
             } else if ( flags[SPACE] ) {
                 flags[QUOTE] = true;
+                flags[QUOTED] = false;
             } else {
                 res[0] = "PARSE ERROR: Unexpected '\"' token";
                 break;
             }
             flags[SPACE] = false;
-        } else if ( command[i] == '$' ) {
+        } else if ( command[i] == '\'' && ! flags[QUOTE] ) {
+            if ( flags[SQUOTE] && !flags[QUOTE] ) {
+                flags[SQUOTE] = false;
+                if ( i > s+1 ) {
+                    std::string quoted = command.substr(s+1, i-s-1);
+                    res.push_back(quoted);
+                    flags[SQUOTED] = true;
+                }
+            } else if ( flags[SPACE] ) {
+                flags[SQUOTE] = true;
+                flags[SQUOTED] = false;
+            } else {
+                res[0] = "PARSE ERROR: Unexpected \"'\" token";
+                break;
+            }
+        } else if ( command[i] == '$' && !flags[SQUOTE] ) {
+            flags[SPACE] = false;
             if ( flags[SPACE] || command[i-1] == '"' ) {
                 flags[VAR] = true;
-                flags[SPACE] = false;
                 v = i+1;
             } else {
                 res[0] = "PARSE ERROR: Unexpected '$' token";
                 return res;
             }
-        } else if ( command[i] == ';' ) {
+        } else if ( command[i] == ';' && !( flags[SQUOTE] || flags[QUOTE] ) ) {
             flags[PARTED] = true;
             if ( command.size() > i+1 && command[i+1] == ' ' && flags[SPACE] ) {
                 command = command.substr(i, command.size()-i+1);
@@ -92,7 +119,7 @@ std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
                 return res;
             }
             break;
-        } else if ( command[i] == '&' || command[i] == '|' )  {
+        } else if ( ( command[i] == '&' || command[i] == '|' ) && !( flags[SQUOTE] || flags[QUOTE] ) )  {
             flags[PARTED] = true;
             if ( command.size() > i+2 && command[i+1] == command[i] && command[i+2] == ' ' && flags[SPACE] ) {
                 command = command.substr(i+1, command.size()-i);
@@ -100,17 +127,20 @@ std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
                 res[0] = "PARSE ERROR: Unexpected '"+std::string(1,command[i])+"' token";
             }
             break;
+        } else if ( command[i] == '\\' ) {
+            flags[ESC] = true;
         } else {
+            if ( flags[QUOTED] || flags[SQUOTED] ) res[0] = "PARSE ERROR: Expected ' ', got '"+command[i]+'\'';
             flags[SPACE] = false;
         }
     }
-    if ( flags[QUOTE] ) res[0] = "PARSE ERROR: Unterminated quote";
+    if ( flags[QUOTE] || flags[SQUOTE] ) res[0] = "PARSE ERROR: Unterminated quote";
     else if ( flags[VAR] ) {
         if ( i != s+1 ) {
             std::string var = command.substr(s+1, i-s-1);
             res.push_back(conVars[var]);
         }
-    } else if ( !( flags[QUOTED] || flags[PARTED] ) ) res.push_back(command.substr(s, i-s));
+    } else if ( !( flags[QUOTED] || flags[SQUOTED] || flags[PARTED] ) ) res.push_back(command.substr(s, i-s));
 
     if ( ! flags[PARTED] ) command = "";
     return res;
@@ -211,7 +241,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 success = true;
                 break;
             case protocol::RENAME:
-                ans = "RENAME";
+                ans = "ERROR: RENAME";
                 success = false;
                 break;
             case protocol::PROTOCOL_ERR:
@@ -271,6 +301,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 ans = "ERROR: Failed to send data";
                 success = false;
                 break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
+                success = false;
+                break;
             default:
                 ans = "ERROR: Unexpected error";
                 success = false;
@@ -287,6 +321,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 break;
             case protocol::SEND_ERROR:
                 ans = "ERROR: Failed to send";
+                success = false;
+                break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
                 success = false;
                 break;
             default:
@@ -307,6 +345,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 ans = "ERROR: Failed to send";
                 success = false;
                 break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
+                success = false;
+                break;
             default:
                 ans = "ERROR: Unexpected error";
                 success = false;
@@ -318,7 +360,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         protocol::ErrorCode res = protocol::whisper(cmd[2], cmd[3]);
         switch ( res ) {
             case protocol::_NOERROR:
-                ans = "";
+                ans = "Whispered to "+cmd[2];
                 success = true;
                 break;
             case protocol::NOT_FOUND:
@@ -327,6 +369,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 break;
             case protocol::SEND_ERROR:
                 ans = "ERROR: Failed to send";
+                success = false;
+                break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
                 success = false;
                 break;
             default:
@@ -353,6 +399,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 break;
             case protocol::SEND_ERROR:
                 ans = "ERROR: Failed to send";
+                success = false;
+                break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
                 success = false;
                 break;
             default:
@@ -396,6 +446,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                     ans = "ERROR: Failed to send";
                     success = false;
                     break;
+                case protocol::PROTOCOL_ERR:
+                    ans = "ERROR: Not joined";
+                    success = false;
+                    break;
                 default:
                     ans = "ERROR: Unexpected error";
                     success = false;
@@ -432,6 +486,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 ans = "ERROR: Failed to send";
                 success = false;
                 break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
+                success = false;
+                break;
             default:
                 ans = "ERROR: Unexpected error";
                 success = false;
@@ -460,6 +518,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 break;
             case protocol::SEND_ERROR:
                 ans = "ERROR: Failed to send";
+                success = false;
+                break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
                 success = false;
                 break;
             default:
@@ -492,6 +554,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 ans = "ERROR: Failed to send";
                 success = false;
                 break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
+                success = false;
+                break;
             default:
                 ans = "ERROR: Unexpected error";
                 success = false;
@@ -520,6 +586,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 break;
             case protocol::SEND_ERROR:
                 ans = "ERROR: Failed to send";
+                success = false;
+                break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
                 success = false;
                 break;
             default:
@@ -552,6 +622,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 ans = "ERROR: Failed to send";
                 success = false;
                 break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
+                success = false;
+                break;
             default:
                 ans = "ERROR: Unexpected error";
                 success = false;
@@ -572,6 +646,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 break;
             case protocol::SEND_ERROR:
                 ans = "ERROR: Failed to send";
+                success = false;
+                break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
                 success = false;
                 break;
             default:
@@ -615,6 +693,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                     break;
                 case protocol::SEND_ERROR:
                     ans = "ERROR: Failed to send";
+                    success = false;
+                    break;
+                case protocol::PROTOCOL_ERR:
+                    ans = "ERROR: Not joined";
                     success = false;
                     break;
                 default:
@@ -661,6 +743,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                     ans = "ERROR: Failed to send";
                     success = false;
                     break;
+                case protocol::PROTOCOL_ERR:
+                    ans = "ERROR: Not joined";
+                    success = false;
+                    break;
                 default:
                     ans = "ERROR: Unexpected error";
                     success = false;
@@ -693,6 +779,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                     ans = "ERROR: Failed to send";
                     success = false;
                     break;
+                case protocol::PROTOCOL_ERR:
+                    ans = "ERROR: Not joined";
+                    success = false;
+                    break;
                 default:
                     ans = "ERROR: Unexpected error";
                     success = false;
@@ -713,6 +803,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 break;
             case protocol::SEND_ERROR:
                 ans = "ERROR: Failed to send";
+                success = false;
+                break;
+            case protocol::PROTOCOL_ERR:
+                ans = "ERROR: Not joined";
                 success = false;
                 break;
             default:

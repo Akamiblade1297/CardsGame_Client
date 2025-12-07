@@ -2,9 +2,11 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QStringListModel>
 #include <fstream>
 
 #define CONHISTORY gameDir+".console_history"
+#define CHAT_CMDS { "/act", "/me", "/whisper", "/roll" }
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -32,10 +34,13 @@ signals:
     void consoleOut ( QString text );
     void consoleIn ( QString command, bool user );
 
+    void chatOut ( QString text );
+
 private slots:
   void on_action_Exit_triggered();
   void toggle_widget( bool checked );
 
+  // Console
   void conOut ( QString text );
   void conIn ( QString command, bool user );
   void conHistoryFind ( bool up );
@@ -44,9 +49,15 @@ private slots:
   void on_ConsoleIn_textEdited();
   void on_ConsoleVerticalScrollbar_rangeChanged();
   void on_ConsoleVerticalScrollbar_valueChanged();
+  // Chat
+  void on_chatOut ( QString text );
+
+  void on_ChatIn_returnPressed();
+  void on_ChatIn_textEdited(const QString &arg1);
 
 private:
   Ui::MainWindow *ui;
+  // Console
   std::map<std::string, std::string> conVars;
   std::string conPattern;
   int historyGetPointer;
@@ -56,7 +67,9 @@ private:
 
   std::vector<std::string> parse_cmd ( std::string& command );
   bool conHistoryUp ( std::ifstream* conHistory );
-  bool conHistoryDown ( std::ifstream* conHistory );
+  bool conHistoryDown ( std::ifstream* conHistory ); 
+  // Chat
+  QStringListModel* chatCompleterModel;
 };
 
 extern MainWindow* mainWindow;

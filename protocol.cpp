@@ -111,6 +111,9 @@ namespace {
     int8_t ErFlip;
     int8_t ErSet;
 
+    std::mutex muConnect;
+    std::mutex muJoin;
+    std::mutex muRejoin;
     std::mutex muPing;
     std::mutex muWhisper;
     std::mutex muRoll;
@@ -132,8 +135,6 @@ namespace {
     std::string* _stats;
     std::vector<std::string>* _players;
 
-    std::random_device rd;
-    std::mt19937 rng(rd());
     std::uniform_int_distribution<uint64_t> dis;
 
     void _worker () {
@@ -144,10 +145,9 @@ namespace {
             if ( received[0] == "JOIN" ) { // JOIN <player>
                 size = 2; CHECK_SIZE;
 
-                emit mainWindow->consoleOut(QString::fromStdString(received[1]+" joined the server"));
-                if ( !playerMgr.playerByName(received[1]) ) {
-                    playerMgr.Players.push_back(Player(received[1]));
-                }
+                playerMgr.playerByName(received[1]);
+                emit mainWindow->consoleOut(QString::fromStdString(received[1]+" joined"));
+                emit mainWindow->chatOut(QString::fromStdString("<i>"+received[1]+" joined</i>"));
             } else if ( received[0] == "WHISPER_SUC" ) { // WHISPER_SUC
                 size = 1;
                 flags[WHIS_S] = true;
@@ -220,19 +220,23 @@ namespace {
             } else if ( received[0] == "CHAT" ) { // CHAT <player> <message>
                 size = 3; CHECK_SIZE;
                 emit mainWindow->consoleOut(QString::fromStdString(received[1]+": \""+received[2]+"\""));
+                emit mainWindow->chatOut(QString::fromStdString("<i><font color="+playerMgr.playerByName(received[1])->Color+">"+received[1]+"</font></i>"+" : "+received[2]));
             } else if ( received[0] == "ACT" ) { // ACT <player> <action>
                 size = 3; CHECK_SIZE;
                 emit mainWindow->consoleOut(QString::fromStdString(received[1]+" *"+received[2]+"*"));
+                emit mainWindow->chatOut(QString::fromStdString("<i><font color="+playerMgr.playerByName(received[1])->Color+'>'+received[1]+"</font> "+received[2]+"</i>"));
             } else if ( received[0] == "WHISPER" ) { // WHISPER <sender> <message>
                 size = 3; CHECK_SIZE;
                 emit mainWindow->consoleOut(QString::fromStdString(received[1]+" whispered: \""+received[2]+"\""));
+                emit mainWindow->chatOut(QString::fromStdString("<i>from "+received[1]+" : "+received[2]+"</i>"));
             } else if ( received[0] == "ROLL" ) { // ROLL <player> <dice> <n> <r1> <r2> <r3> ... <rn>
                 size = 4; CHECK_SIZE;
                 int num = std::stoi(received[3]);
                 size += num; CHECK_SIZE;
-                std::string message = received[1]+" rolled "+received[3]+"d"+received[2]+": ";
-                for ( int i = 4 ; i < size ; i++ ) message += received[i] + " ";
-                emit mainWindow->consoleOut(QString::fromStdString(message));
+                std::string msg_temp = " rolled "+received[3]+'d'+received[2]+' ';
+                for ( int i = 4 ; i < size ; i++ ) msg_temp += received[i] + ' ';
+                emit mainWindow->consoleOut(QString::fromStdString(received[1]+msg_temp));
+                emit mainWindow->chatOut(QString::fromStdString("<i><font color="+playerMgr.playerByName(received[1])->Color+">"+received[1]+"</font>"+msg_temp+"</i>"));
 
                 ErRoll = _NOERROR;
                 flags[ROLL_R] = true;
@@ -295,8 +299,7 @@ namespace {
                 while (1) {
                     if ( received[size-1] == "END" ) break;
                     _players->push_back(received[size-1]);
-                    if ( playerMgr.playerByName(received[size-1]) == nullptr )
-                        playerMgr.Players.push_back(Player(received[size-1]));
+                    playerMgr.playerByName(received[size-1]);
 
                     size++;CHECK_SIZE;
                 }
@@ -310,10 +313,6 @@ namespace {
                 size = 3; CHECK_SIZE;
                 Player* sender = playerMgr.playerByName(received[1]) ;
                 constexpr int i = 2;
-                if ( sender == nullptr ) {
-                    playerMgr.Players.push_back(Player(received[1]));
-                    sender = &playerMgr.Players.back();
-                }
 
                 if ( received[i] == "DECK" ) { // DECK <deck src> <dest> <x> <y> <card>
                     size += 5; CHECK_SIZE;
@@ -440,13 +439,16 @@ namespace {
 
 namespace protocol {
     ErrorCode connect ( const char* ip, unsigned short port ) {
+        std::lock_guard<std::mutex> lock(muConnect);
         if ( conn != nullptr )
             delete conn;
+        flags[JOINED] = false;
         bool suc;
         conn = new Connection( ip, port, &suc );
         return suc ? _NOERROR : SEND_ERROR;
     }
     ErrorCode join ( const char* username, char* result ) {
+        std::lock_guard<std::mutex> lock(muJoin);
         if ( flags[JOINED] ) return PROTOCOL_ERR;
         if ( flags[RENAMING] ) {
             if ( conn->Send(username) == -1 ) return SEND_ERROR;
@@ -480,6 +482,8 @@ namespace protocol {
         } else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "join");
     }
     ErrorCode rejoin ( const char* pass ) {
+        std::lock_guard<std::mutex> lock(muRejoin);
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::string temp = "REJOIN";
         temp+=DEL;
         temp.append(pass, 8);
@@ -498,11 +502,12 @@ namespace protocol {
         else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "rejoin");
     }
     ErrorCode ping ( int& time, int timeout ) {
+        std::lock_guard<std::mutex> lock(muPing);
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         uint64_t dat = dis(rng);
         char data[9] = {0};
         std::memcpy(data, &dat, 8);
 
-        std::lock_guard<std::mutex> lock(muPing);
         time = timeout;
         std::string temp = "PING";
         if ( conn->Send(temp + DEL + data) == -1 ) return SEND_ERROR;
@@ -525,17 +530,20 @@ namespace protocol {
         else throw ProtocolCriticalError(CRIT__UNEXPECTED_RESPONSE, "ping");
     }
     ErrorCode chat ( std::string msg ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::string temp = "CHAT";
         if ( conn->Send(temp + DEL + msg) == -1 ) return SEND_ERROR;
         return _NOERROR;
     }
     ErrorCode action ( std::string act ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::string temp = "ACT";
         if ( conn->Send(temp + DEL + act) == -1 ) return SEND_ERROR;
         return _NOERROR;
     }
     ErrorCode whisper ( std::string player, std::string msg ) {
-        std::lock_guard<std::mutex> lock(muWhisper);       
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
+        std::lock_guard<std::mutex> lock(muWhisper);
         std::string temp = "WHISPER";
         int res = conn->Send(temp + DEL + player + DEL + msg);
 
@@ -543,10 +551,16 @@ namespace protocol {
         flags[WHIS_R] = false;
         while ( !flags[WHIS_R] ) {}
 
-        if ( !flags[WHIS_S] ) return NOT_FOUND;
-        return _NOERROR;
+        if ( flags[WHIS_S] ) {
+            mainWindow->chatOut(QString::fromStdString("<i>to "+player+" : "+msg+"</i>"));
+            return _NOERROR;
+        } else {
+            mainWindow->chatOut(QString::fromStdString("<i>no such player \""+player+'"'));
+            return NOT_FOUND;
+        }
     }
     ErrorCode roll ( std::string dice, std::string num) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muRoll);
         std::string temp = "ROLL";
         if ( conn->Send(temp + DEL + dice + DEL + num) == -1 ) return SEND_ERROR;
@@ -557,6 +571,7 @@ namespace protocol {
         return (ErrorCode)ErRoll;
     }
     ErrorCode deck ( std::string src, std::string dest, std::string x, std::string y ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muDeck);
         std::string temp = "DECK";
         if ( conn->Send(temp + DEL + src + DEL + dest + DEL + x + DEL + y) == -1 ) return SEND_ERROR;
@@ -566,6 +581,7 @@ namespace protocol {
         return (ErrorCode)ErDeck;
     }
     ErrorCode move ( std::string src, std::string card_id, std::string dest, std::string x, std::string y ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muMove);
         std::string temp = "MOVE";
         if ( conn->Send(temp + DEL + src + DEL + card_id + DEL + dest + DEL + x + DEL + y) == -1 ) return SEND_ERROR;
@@ -575,6 +591,7 @@ namespace protocol {
         return (ErrorCode)ErMove;
     }
     ErrorCode rotate ( std::string spatial, std::string card_id, std::string rot) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muRot);
         std::string temp = "ROTATE";
         if ( conn->Send(temp + DEL + spatial + DEL + card_id + DEL + rot ) == -1 ) return SEND_ERROR;
@@ -584,6 +601,7 @@ namespace protocol {
         return (ErrorCode)ErRot;
     }
     ErrorCode flip ( std::string spatial, std::string card_id ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muFlip);
         std::string temp = "FLIP";
         if ( conn->Send(temp + DEL + spatial + DEL + card_id ) == -1 ) return SEND_ERROR;
@@ -593,6 +611,7 @@ namespace protocol {
         return (ErrorCode)ErFlip;
     }
     ErrorCode shuffle ( std::string deck ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muShuffle);
         std::string temp = "SHUFFLE";
         if ( conn->Send(temp + DEL + deck ) == -1 ) return SEND_ERROR;
@@ -602,6 +621,7 @@ namespace protocol {
         return flags[SHUF_S] ? _NOERROR : NOT_FOUND;
     }
     ErrorCode set ( std::string stat, std::string value ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muSet);
         std::string temp = "SET";
         if ( conn->Send(temp+DEL+stat+DEL+value ) == -1) return SEND_ERROR;
@@ -611,6 +631,7 @@ namespace protocol {
         return (ErrorCode)ErSet;
     }
     ErrorCode rename ( std::string name ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muRename);
         std::string temp = "RENAME";
         if ( conn->Send(temp+DEL+name ) == -1 ) return SEND_ERROR;
@@ -620,6 +641,7 @@ namespace protocol {
         return flags[RNM_S] ? _NOERROR : RENAME;
     }
     ErrorCode see ( std::string container, std::vector<Card>* res ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muSee);
         _see = res;
 
@@ -631,6 +653,7 @@ namespace protocol {
         return flags[SEE_S] ? _NOERROR : NOT_FOUND;
     }
     ErrorCode cards ( std::string container, std::vector<Card>* res ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muCards);
         _cards = res;
 
@@ -642,6 +665,7 @@ namespace protocol {
         return flags[CRDS_S] ? _NOERROR : NOT_FOUND;
     }
     ErrorCode stat ( std::string player, std::string* res ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muStat);
         _stats = res;
 
@@ -653,6 +677,7 @@ namespace protocol {
         return flags[STAT_S] ? _NOERROR : NOT_FOUND;
     }
     ErrorCode players ( std::vector<std::string>* res ) {
+        if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muPlayers);
         _players = res;
 
