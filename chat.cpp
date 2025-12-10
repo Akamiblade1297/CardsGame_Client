@@ -1,4 +1,4 @@
-#include "mainwindow.h";
+#include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "string_func.h"
 #include "main.h"

@@ -1,21 +1,25 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "chatcompleter.h"
+#include "network.h"
 #include <string>
 #include <QScrollBar>
 #include <QShortcut>
 #include <QScreen>
 #include <QCompleter>
 #include <QStringListModel>
+#include <QFormLayout>
 
 #define TABL_ENABLED false
 #define CHAT_ENABLED true
 #define CONS_ENABLED true
-#define SERV_ENABLED false
+#define SERV_ENABLED true
 
 MainWindow::MainWindow (QWidget *parent)
     : QMainWindow (parent), ui (new Ui::MainWindow)
 {
+  Connection::NetworkInit();
+
   ui->setupUi (this);
   resize(screen()->availableGeometry().size() * 0.8);
 
@@ -80,6 +84,10 @@ MainWindow::MainWindow (QWidget *parent)
   chatCompleter->setCompletionMode(QCompleter::PopupCompletion);
   ui->ChatIn->setCompleter(chatCompleter);
 
+  // ServerList Context Menu
+  connect(ui->ServerList, &QWidget::customContextMenuRequested, this, &MainWindow::ServerListContextMenu);
+  UpdateServerList();
+
   // Splitter stretch factors
   ui->splitter_TaSL->setStretchFactor(0,3);
   ui->splitter_TaSL->setStretchFactor(1,1);
@@ -102,7 +110,10 @@ MainWindow::MainWindow (QWidget *parent)
   ui->action_ServerList->setChecked(SERV_ENABLED);ui->ServerList->setVisible(SERV_ENABLED);
 }
 
-MainWindow::~MainWindow () { delete ui; }
+MainWindow::~MainWindow () {
+    Connection::NetworkClean();
+    delete ui;
+}
 
 void MainWindow::on_action_Exit_triggered()
 {

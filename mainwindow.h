@@ -55,6 +55,9 @@ private slots:
   void on_ChatIn_returnPressed();
   void on_ChatIn_textEdited(const QString &arg1);
 
+  // ServerList
+  void ServerListContextMenu ( const QPoint& pos );
+  void on_joinServerButton_pressed();
 private:
   Ui::MainWindow *ui;
   // Console
@@ -70,6 +73,10 @@ private:
   bool conHistoryDown ( std::ifstream* conHistory ); 
   // Chat
   QStringListModel* chatCompleterModel;
+  // ServerList
+  void addServer ( const char* ip, unsigned short port );
+  void UpdateServerList();
+  void clearServers();
 };
 
 extern MainWindow* mainWindow;

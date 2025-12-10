@@ -215,12 +215,22 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         try {
             protocol::ErrorCode res = protocol::connect(cmd[2].data(), (unsigned short)std::strtoul(cmd[3].c_str(), NULL, 0));
 
-            if ( res == protocol::_NOERROR ) {
-                ans = "Connected";
-                success = true;
-            } else {
-                ans = "ERROR: Failed to connect";
-                success = false;
+            switch ( res ) {
+                case protocol::_NOERROR:
+                    ans = "Connected";
+                    success = true;
+                    break;
+                case protocol::SEND_ERROR:
+                    ans = "ERROR: Failed to connect";
+                    success = false;
+                    break;
+                case protocol::PROTOCOL_ERR:
+                    ans = "ERROR: Invalid server";
+                    success = false;
+                    break;
+                default:
+                    ans = "ERROR: Unexpected error";
+                    success = false;
             }
         } catch ( std::out_of_range ) {
             ans = "Invalid port";

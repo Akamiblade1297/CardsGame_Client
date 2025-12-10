@@ -43,7 +43,7 @@ namespace protocol {
      * @brief Connect to server
      * @param ip IP Address of a server
      * @param port Server game port
-     * @return NOERROR, SEND_ERROR
+     * @return NOERROR, SEND_ERROR, PROTOCOL_ERR
      */
     ErrorCode connect ( const char* ip, unsigned short port );
     /**

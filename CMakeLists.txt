@@ -21,10 +21,12 @@ set(PROJECT_SOURCES
         functions.cpp
         string_func.cpp
         protocol.cpp
+        network.cpp
         console.cpp
         functions.h
         chat.cpp
         chatcompleter.cpp
+        serverlist.cpp
         string_func.h
         mainwindow.h 
         protocol.h

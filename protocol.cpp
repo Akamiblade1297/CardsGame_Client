@@ -21,6 +21,7 @@
 
 namespace {
     Connection* conn = nullptr;
+    std::thread* receiver_thread;
 
     char buffer[BUFSIZE+1] = {0};
     std::deque<std::string> received;
@@ -64,41 +65,41 @@ namespace {
         RNM_R  = 21,
         RNM_S  = 22,
     };
-    std::bitset<23> flags = {0};
+    static std::bitset<23> flags = {0};
 
 }
 
 namespace protocol {
     class ProtocolCriticalError : public std::runtime_error {
-        private:
-            CritErrorCode code;
-            static std::string str_code ( CritErrorCode cod ) {
-                switch (cod) {
-                    case CRIT__UNEXPECTED_RESPONSE:
-                        return "UNEXPECTED_RESPONSE";
-                    case CRIT__INVALID_PLAYER:
-                        return "INVALID_PLAYER";
-                    case CRIT__ALREADY_JOINED:
-                        return "ALREADY_JOINED";
-                    case CRIT__BAD_CONTAINER:
-                        return "BAD_CONTAINER";
-                    case CRIT__NOT_JOINED:
-                        return "NOT_JOINED";
-                    case CRIT__EMPTY_DECK:
-                        return "EMPTY_DECK";
-                    case CRIT__NUM_ERROR:
-                        return "NUM_ERROR";
-                    case CRIT__BAD_STAT:
-                        return "BAD_STAT";
-                    case CRIT__BAD_CARD:
-                        return "BAD_CARD";
-                }
+    private:
+        CritErrorCode code;
+        static std::string str_code ( CritErrorCode cod ) {
+            switch (cod) {
+                case CRIT__UNEXPECTED_RESPONSE:
+                    return "UNEXPECTED_RESPONSE";
+                case CRIT__INVALID_PLAYER:
+                    return "INVALID_PLAYER";
+                case CRIT__ALREADY_JOINED:
+                    return "ALREADY_JOINED";
+                case CRIT__BAD_CONTAINER:
+                    return "BAD_CONTAINER";
+                case CRIT__NOT_JOINED:
+                    return "NOT_JOINED";
+                case CRIT__EMPTY_DECK:
+                    return "EMPTY_DECK";
+                case CRIT__NUM_ERROR:
+                    return "NUM_ERROR";
+                case CRIT__BAD_STAT:
+                    return "BAD_STAT";
+                case CRIT__BAD_CARD:
+                    return "BAD_CARD";
             }
-        public:
-            ProtocolCriticalError ( CritErrorCode cod, std::string breakpoint ) : code(cod), std::runtime_error(str_code(cod)+' '+breakpoint) {
-                flags[JOINED] = false;
-                conn->Close();
-            }
+        }
+    public:
+        ProtocolCriticalError ( CritErrorCode cod, std::string breakpoint ) : code(cod), std::runtime_error(str_code(cod)+' '+breakpoint) {
+            flags[JOINED] = false;
+            conn->Close();
+        }
     };
 }
 
@@ -420,8 +421,8 @@ namespace {
         playerMgr.Players.erase(playerMgr.Players.begin(), playerMgr.Players.end());
         playerMgr.Players.push_back(Player(username));
 
-        std::thread receiver_thread(_receiver);
-        receiver_thread.detach();
+        receiver_thread = new std::thread(_receiver);
+        receiver_thread->detach();
     }
     std::string parse_pass(char* buffer, int& i) {
         char pass[8];
@@ -440,12 +441,25 @@ namespace {
 namespace protocol {
     ErrorCode connect ( const char* ip, unsigned short port ) {
         std::lock_guard<std::mutex> lock(muConnect);
-        if ( conn != nullptr )
+        if ( receiver_thread != nullptr ) {
+            receiver_thread->~thread();
+            delete receiver_thread;
+            receiver_thread = nullptr;
+        }
+        if ( conn != nullptr ) {
             delete conn;
+            conn = nullptr;
+        }
         flags[JOINED] = false;
         bool suc;
         conn = new Connection( ip, port, &suc );
-        return suc ? _NOERROR : SEND_ERROR;
+        if ( !suc ) return SEND_ERROR;
+        char buffer[14] = {0};
+        conn->Receive(buffer, 13, 2);
+        if ( strcmp(buffer, "NOT_MUNCHKIN\n") != 0 )
+            return PROTOCOL_ERR;
+        else
+            return _NOERROR;
     }
     ErrorCode join ( const char* username, char* result ) {
         std::lock_guard<std::mutex> lock(muJoin);
