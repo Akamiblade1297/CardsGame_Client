@@ -94,7 +94,7 @@ namespace ServerScanner {
         for (size_t i = startIdx; i < endIdx && !stopScan; ++i) {
             if (checkServer(ipList[i], 8494)) {
                 std::lock_guard<std::mutex> lock(resultMutex);
-                results.push_back(ipList[i]);
+                results.push_back(ntohl(ipList[i]));
             }
         }
     }

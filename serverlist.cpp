@@ -46,10 +46,10 @@ void MainWindow::UpdateServerList() {
     for ( int i = 0 ; i < servers.size() ; i++ ) {
         char ip[INET_ADDRSTRLEN];
 #ifdef _WIN32
-        inet_ntop(AF_INET, &servers[i], buffer, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &servers[i], ip, INET_ADDRSTRLEN);
 #else
         struct in_addr addr;
-        addr.s_addr = htonl(servers[i]);
+        addr.s_addr = servers[i];
         inet_ntop(AF_INET, &addr, ip, INET_ADDRSTRLEN);
 #endif
         addServer(ip, 8494);
