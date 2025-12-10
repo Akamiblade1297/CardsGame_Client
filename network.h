@@ -57,7 +57,7 @@ public:
    */
   static void NetworkClean () {
 #ifdef _WIN32
-    WSACleanup()
+    WSACleanup();
 #endif
   }
   /**
