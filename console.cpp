@@ -10,6 +10,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cmath>
 #include <QScrollBar>
 
 std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
@@ -102,8 +103,8 @@ std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
                 break;
             }
         } else if ( command[i] == '$' && !flags[SQUOTE] ) {
-            flags[SPACE] = false;
             if ( flags[SPACE] || command[i-1] == '"' ) {
+                flags[SPACE] = false;
                 flags[VAR] = true;
                 v = i+1;
             } else {
@@ -146,20 +147,25 @@ std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
     return res;
 }
 
-std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
+std::string MainWindow::conInterpret ( std::string command, bool* succ, void* result, size_t rsize ) {
     int cmdsize = -1;
     std::string ans;
     bool success;
+    bool store_res = ( result != nullptr );
+    if ( store_res ) {
+        (*(char*)result)--;
+        store_res = ( *(char*)result == 0 );
+    }
 
     std::vector<std::string> cmd = parse_cmd(command);
-    if ( cmd.size() == 1 || cmd[1] == "" ) return std::pair(true, "");
+    if ( cmd.size() == 1 || cmd[1] == "" ) return "";
     std::cout << command << std::endl;
     for ( const auto& s : cmd ) std::cout << s << ' '; std::cout << std::endl;
 
     if ( cmd[0] != "SUCCESS" ) {
         std::string ans = cmd[0];
-        bool success = false;
-        return std::pair(success, ans);
+        success = false;
+        return ans;
     } else if ( cmd.size() >= 4 && cmd[2] == "=" ) { // [var] = [val]
         cmdsize = 4;
 
@@ -173,7 +179,13 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 3;
 
         ans = conVars[cmd[2]];
-        success = true;
+        success = (ans != "");
+
+        if ( success && store_res && rsize > 1 ) {
+            size_t copy_len = std::min(ans.size(), rsize-1);
+            std::memcpy(result, ans.data(), copy_len);
+            ((char*)result)[copy_len] = 0;
+        }
     } else if ( cmd.size() >= 2 && cmd[1] == "printall" ) { // printall
         cmdsize = 2;
 
@@ -209,12 +221,30 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
 
         ans = "Cleared history";
         success = true;
+    } else if ( cmd.size() >= 2 && cmd[1] == "disconnect" ) { // disconnect
+        cmdsize = 2;
+
+        protocol::ErrorCode res = protocol::disconnect();
+        if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
+        switch ( res ) {
+            case protocol::_NOERROR:
+                ans = "Disconnected";
+                success = true;
+                break;
+            case protocol::INVALID_SOCK:
+                ans = "ERROR: Not connected";
+                success = false;
+                break;
+            default:
+                ans = "ERROR: Unexpected error";
+                success = false;
+        }
     } else if ( cmd.size() >= 4 && cmd[1] == "connect" ) { // connect [addr] [port]
         cmdsize = 4;
 
         try {
             protocol::ErrorCode res = protocol::connect(cmd[2].data(), (unsigned short)std::strtoul(cmd[3].c_str(), NULL, 0));
-
+            if  ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
             switch ( res ) {
                 case protocol::_NOERROR:
                     ans = "Connected";
@@ -226,6 +256,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                     break;
                 case protocol::PROTOCOL_ERR:
                     ans = "ERROR: Invalid server";
+                    success = false;
+                    break;
+                case protocol::INVALID_SOCK:
+                    ans = "ERROR: Already connected";
                     success = false;
                     break;
                 default:
@@ -243,7 +277,9 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 3;
 
         char pass[8] = {0};
+        ui->ChatOut->clear();
         protocol::ErrorCode res = protocol::join(cmd[2].data(), pass);
+        if  ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "";
@@ -271,6 +307,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 3;
 
         protocol::ErrorCode res = protocol::rejoin(cmd[2].data());
+        if  ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "Rejoined successfully";
@@ -298,6 +335,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
 
         int time;
         protocol::ErrorCode res = protocol::ping(time);
+        if  ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "Received data. Elapsed time: "+std::to_string(time)+"ms";
@@ -323,7 +361,8 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
     } else if ( cmd.size() >= 3 && cmd[1] == "chat" ) { // chat [msg]
         cmdsize = 3;
 
-        protocol::ErrorCode res = protocol::chat(cmd[2]);
+        protocol::ErrorCode res = protocol::chat(cmd[2]); 
+        if  ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "";
@@ -346,6 +385,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 3;
 
         protocol::ErrorCode res = protocol::action(cmd[2]);
+        if  ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "";
@@ -368,6 +408,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 4;
 
         protocol::ErrorCode res = protocol::whisper(cmd[2], cmd[3]);
+        if  ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "Whispered to "+cmd[2];
@@ -394,6 +435,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 4;
 
         protocol::ErrorCode res = protocol::roll(cmd[2], cmd[3]);
+        if  ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "";
@@ -426,11 +468,14 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         if ( deck == nullptr ) {
             ans = "ERROR: Not found deck";
             success = false;
+            if  ( store_res && rsize >= sizeof(int) ) *(int*)result = protocol::NOT_FOUND+27;
         } else if ( deck->Cards.empty() ) {
             ans = "ERROR: Local deck is empty. Try running \"cards "+cmd[2]+"\"";
             success = false;
+            if  ( store_res && rsize >= sizeof(int) ) *(int*)result = protocol::EMPTY+27;
         } else {
             protocol::ErrorCode res = protocol::deck(cmd[2], cmd[3], cmd[4], cmd[5]);
+            if  ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
             switch ( res ) {
                 case protocol::_NOERROR:
                     ans = "";
@@ -472,9 +517,10 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         if ( spatial == nullptr ) {
             ans = "ERROR: Not found source";
             success = false;
-
+            if ( store_res && rsize >= sizeof(int) ) *(int*)result = protocol::NOT_FOUND+27;
         }
         protocol::ErrorCode res = protocol::move(cmd[2], cmd[3], cmd[4], cmd[5], cmd[6]);
+        if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "";
@@ -509,6 +555,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 5;
 
         protocol::ErrorCode res = protocol::rotate(cmd[2], cmd[3], cmd[4]);
+        if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "";
@@ -543,6 +590,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 4;
 
         protocol::ErrorCode res = protocol::flip(cmd[2], cmd[3]);
+        if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "";
@@ -577,6 +625,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 3;
 
         protocol::ErrorCode res = protocol::shuffle(cmd[2]);
+        if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "";
@@ -611,6 +660,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 4;
 
         protocol::ErrorCode res = protocol::set(cmd[2], cmd[3]);
+        if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "";
@@ -645,6 +695,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         cmdsize = 3;
 
         protocol::ErrorCode res = protocol::rename(cmd[2]);
+        if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "Renamed to "+cmd[2];
@@ -683,9 +734,12 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
             }
         } else cards = &spatial->Cards;
 
-        if ( cards != nullptr ) {
+        if ( cards == nullptr && store_res && rsize >= sizeof(int) ) {
+            *(int*)result = protocol::NOT_FOUND+27;
+        } else {
             int old_size = cards->size();
             protocol::ErrorCode res = protocol::see(cmd[2], cards);
+            if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
 
             switch ( res ) {
                 case protocol::_NOERROR:
@@ -731,9 +785,12 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
             }
         } else cards = &deck->Cards;
 
-        if ( cards != nullptr ) {
+        if ( cards == nullptr && store_res && rsize >= sizeof(int) ) {
+            *(int*)result = protocol::NOT_FOUND+27;
+        } else {
             int old_size = cards->size();
             protocol::ErrorCode res = protocol::cards(cmd[2], cards);
+            if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
 
             switch ( res ) {
                 case protocol::_NOERROR:
@@ -771,9 +828,11 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         if ( plr == nullptr ) {
             ans = "ERROR: No such player \""+cmd[2]+"\"";
             success = false;
+            if ( store_res && rsize >= sizeof(int) ) *(int*)result = protocol::NOT_FOUND+27;
         } else {
             std::string stats[3];
             protocol::ErrorCode res = protocol::stat(cmd[2], stats);
+            if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
 
             switch ( res ) {
                 case protocol::_NOERROR:
@@ -804,6 +863,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
 
         std::vector<std::string> plrs;
         protocol::ErrorCode res = protocol::players(&plrs);
+        if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
         switch ( res ) {
             case protocol::_NOERROR:
                 ans = "";
@@ -824,7 +884,24 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
                 success = false;
                 break;
         }
+    } else if ( cmd.size() >= 2 && cmd[1] == "status" ) { // status
+        cmdsize = 2;
+        Connection* conn = protocol::connection();
+        if ( conn == nullptr ) {
+            ans = "Not connected";
+            success = false;
+        } else {
+            std::ostringstream answer;
+            answer << "Connected\n";
+            answer << "    Server: " << conn->Address() << '\n';
+            answer << "    LocalPlayer: " << LOCALPLAYER.Name << '\n';
+
+            ans = answer.str();
+            success = true;
+        }
     } else if ( cmd.size() >= 2 && cmd[1] == "help" ) { // help
+        cmdsize = 2;
+
         std::ostringstream answer;
         answer << "Вы можете создавать свои переменные, используя синтаксис: \"[var] = [value]\",\n";
         answer << "и использовать их, через синтаксис: \"$[var]\"\n";
@@ -836,6 +913,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         answer << "history"                                << "\t\t\t" << "Вывести историю комманд"                                      << '\n';
         answer << "clear"                                  << "\t\t\t" << "Очистить консоль"                                             << '\n';
         answer << "clear-his"                              << "\t\t\t" << "Очистить историю отправленных комманд"                        << '\n';
+        answer << "disconnect"                             << "\t\t\t" << "Отключиться от сервера"                                       << '\n';
         answer << "connect [address] [port]"               << "\t"     << "Подключиться к серверу по аддресу address:port"               << '\n';
         answer << "join [name]"                            << "\t\t\t" << "Присоединиться к игре как name"                               << '\n';
         answer << "rejoin [pass]"                          << "\t\t"   << "Перезайти к игре через пароль pass"                           << '\n';
@@ -855,6 +933,7 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
         answer << "cards [nonvisible]"                     << "\t\t"   << "Посмотреть список всех карт внутри nonvisible"                << '\n';
         answer << "stat [player]"                          << "\t\t"   << "Посмотреть stat игрока player"                                << '\n';
         answer << "players"                                << "\t\t\t" << "Посмотреть список всех игроков в игре"                        << '\n';
+        answer << "status"                                 << "\t\t\t" << "Вывести информацию о сервере"                                 << '\n';
         answer << "help"                                   << "\t\t\t" << "Вывести этот текст"                                           << "\n\n";
 
         answer << "Понятия:" << '\n';
@@ -884,13 +963,14 @@ std::pair<bool, std::string> MainWindow::conInterpret ( std::string command ) {
     }
     if ( command != "" ) {
         if ( command[0] == ';' || ( command[0] == '&' && success ) || ( command[0] == '|' && !success ) ) {
-            auto [success2, ans2] = conInterpret(command.substr(1, command.size()-1));
-            success = success2;
+            if ( store_res ) *(char*)result++;
+            std::string ans2 = conInterpret(command.substr(1, command.size()-1), &success, result, rsize);
             if ( ans2 == "CLEAR" ) ans = ans2;
             else ans += ( ( ans == "" || ans2 == "" ) ? "" : "\n" ) + ans2;
         }
     }
-    return std::pair(success, ans);
+    if ( succ != nullptr ) *succ = success;
+    return ans;
 }
 
 void MainWindow::conOut ( QString text ) {
@@ -898,7 +978,7 @@ void MainWindow::conOut ( QString text ) {
     ui->ConsoleOut->setText(ui->ConsoleOut->text() + text + '\n');
 }
 
-void MainWindow::conIn ( QString command, bool user ) {
+void MainWindow::conIn ( QString command, bool user, bool* succ, void* res, size_t rsize ) {
     conOut("> "+command);
     if ( user ) {
         scrollLocked = false;
@@ -913,9 +993,12 @@ void MainWindow::conIn ( QString command, bool user ) {
             std::cout << "WARNING: Can't access \""+CONHISTORY+'"';
         }
     }
-    std::pair<int, std::string> result = conInterpret(command.toStdString());
-    if ( result.second == "CLEAR" ) ui->ConsoleOut->clear();
-    else conOut(QString::fromStdString((result.second)));
+    std::string result = conInterpret(command.toStdString(), succ, res, rsize);
+    if ( result.substr(0, 5) == "CLEAR" ) {
+        ui->ConsoleOut->clear();
+        result = result.substr(5, result.size()-5);
+    }
+    conOut(QString::fromStdString((result)));
 }
 
 // GetPointer should point to '\n'. Moves pointer to next '\n'

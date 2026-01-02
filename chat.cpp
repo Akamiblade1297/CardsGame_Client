@@ -34,17 +34,30 @@ void MainWindow::on_ChatIn_returnPressed() {
     QString message = ui->ChatIn->text();
     if ( message.isEmpty() ) return;
 
-    ui->ChatIn->setText("");
+    ui->ChatIn->clear();
     if ( message[0] == '/' ) {
         std::vector<std::string> msg = split(message.toStdString().data(), ' ');
-        if ( msg[0] == "/me" ) consoleIn("act "+parse_msg(message.mid(4)), false);
-        else if ( msg[0] == "/r" || msg[0] == "/roll" ) consoleIn(QString::fromStdString("roll "+msg[1]+' '+msg[2]), false);
-        else if ( msg[0] == "/w" || msg[0] == "/whisper" ) {
+        if ( msg[0] == "/clear" ) ui->ChatOut->clear();
+        else if ( msg[0] == "/me" ) {
+            bool succ;
+            consoleIn("act "+parse_msg(message.mid(4)), false, &succ);
+            if (!succ) chatOut("<b><i><font color=red>Error occured. Maybe you forgot to join the server? </font></i></b>");
+        } else if ( msg[0] == "/r" || msg[0] == "/roll" ) {
+            bool succ;
+            consoleIn(QString::fromStdString("roll "+msg[1]+' '+msg[2]), false, &succ);
+            if (!succ) chatOut("<b><i><font color=red>Error occured. Maybe you forgot to join the server? </font></i></b>");
+        } else if ( msg[0] == "/w" || msg[0] == "/whisper" ) {
             int mpos = msg[0].size() + msg[1].size() + 2;
-            consoleIn("whisper "+parse_msg(msg[1])+" "+parse_msg(message.mid(mpos)), false);
+            bool succ;
+            consoleIn("whisper "+parse_msg(msg[1])+" "+parse_msg(message.mid(mpos)), false, &succ);
+            if (!succ) chatOut("<b><i><font color=red>Error occured. Maybe you forgot to join the server? </font></i></b>");
         }
         else chatOut(QString::fromStdString("Unknown command \""+msg[0].substr(1,msg[0].size()-1)+'"'));
-    } else consoleIn("chat "+parse_msg(message), false);
+    } else {
+        bool succ;
+        consoleIn("chat "+parse_msg(message), false, &succ);
+        if (!succ) chatOut("<b><i><font color=red>Error occured. Maybe you forgot to join the server? </font></i></b>");
+    }
 }
 
 void MainWindow::on_ChatIn_textEdited(const QString &text) {

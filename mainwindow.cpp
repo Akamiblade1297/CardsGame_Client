@@ -2,6 +2,9 @@
 #include "./ui_mainwindow.h"
 #include "chatcompleter.h"
 #include "network.h"
+#include "rejoindialog.h"
+#include "joindialog.h"
+#include "protocol.h"
 #include <string>
 #include <QScrollBar>
 #include <QShortcut>
@@ -9,6 +12,7 @@
 #include <QCompleter>
 #include <QStringListModel>
 #include <QFormLayout>
+#include <QMessageBox>
 
 #define TABL_ENABLED false
 #define CHAT_ENABLED true
@@ -86,6 +90,8 @@ MainWindow::MainWindow (QWidget *parent)
 
   // ServerList Context Menu
   connect(ui->ServerList, &QWidget::customContextMenuRequested, this, &MainWindow::ServerListContextMenu);
+  subnet_addr = 0x7F000001; // 127.0.0.1
+  subnet_mask = 0;
   UpdateServerList();
 
   // Splitter stretch factors
@@ -117,7 +123,36 @@ MainWindow::~MainWindow () {
 
 void MainWindow::on_action_Exit_triggered()
 {
-  this->close();
+  QMessageBox msgBox(this);
+  msgBox.setWindowTitle("УВЕРЕН????");
+  msgBox.setText("Вы уверены, что хотите полностью закрыть игру?");
+  msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+  msgBox.setDefaultButton(QMessageBox::Yes);
+  msgBox.button(QMessageBox::Yes)->setText("Да");
+  msgBox.button(QMessageBox::No)->setText("Нет");
+  if ( msgBox.exec() == QMessageBox::Yes )
+      this->close();
+}
+void MainWindow::on_action_Join_triggered() {
+    JoinDialog* dialog = new JoinDialog(this);
+    dialog->exec();
+}
+void MainWindow::on_action_Rejoin_triggered() {
+    RejoinDialog* dialog = new RejoinDialog(this);
+    dialog->exec();
+}
+void MainWindow::on_action_Disconnect_triggered() {
+    if ( protocol::connection() != nullptr ) {
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle("УВЕРЕН????");
+        msgBox.setText("Вы уверены, что хотите отключиться от сервера?");
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setDefaultButton(QMessageBox::Yes);
+        msgBox.button(QMessageBox::Yes)->setText("Да");
+        msgBox.button(QMessageBox::No)->setText("Нет");
+
+       if ( msgBox.exec() == QMessageBox::Yes ) emit consoleIn("disconnect", false);
+    }
 }
 
 void MainWindow::toggle_widget ( bool checked ) {

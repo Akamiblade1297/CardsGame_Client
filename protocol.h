@@ -40,10 +40,20 @@ namespace protocol {
     };
 
     /**
+     * @brief Get Connection
+     * @return Connection pointer
+     */
+    Connection* connection ();
+    /**
+     * @brief Disconnect from server
+     * @return NOERROR, INVALID_SOCKET
+     */
+    ErrorCode disconnect ();
+    /**
      * @brief Connect to server
      * @param ip IP Address of a server
      * @param port Server game port
-     * @return NOERROR, SEND_ERROR, PROTOCOL_ERR
+     * @return NOERROR, SEND_ERROR, INVALID_SOCKET, PROTOCOL_ERR
      */
     ErrorCode connect ( const char* ip, unsigned short port );
     /**

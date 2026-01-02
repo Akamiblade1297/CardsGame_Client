@@ -10,7 +10,6 @@ static std::mt19937 rng(rd());
 const std::vector<std::string> playerColors = {
     "#FF6B6B", // Warm coral red
     "#4ECDC4", // Bright turquoise
-    "#FFD166", // Vibrant yellow/gold
     "#06D6A0", // Emerald green
     "#118AB2", // Strong ocean blue
     "#9D4EDD", // Deep purple (high contrast)

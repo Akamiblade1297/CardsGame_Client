@@ -6,7 +6,7 @@
 #include <fstream>
 
 #define CONHISTORY gameDir+".console_history"
-#define CHAT_CMDS { "/me", "/whisper", "/roll" }
+#define CHAT_CMDS { "/me", "/whisper", "/roll", "/clear" }
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -23,26 +23,22 @@ public:
   MainWindow (QWidget *parent = nullptr);
   ~MainWindow ();
 
-    /**
-     * @brief Interpret a console command
-     * @param command
-     * @return boolean Success and string Out
-     */
-    std::pair<bool, std::string> conInterpret ( std::string command );
-
 signals:
     void consoleOut ( QString text );
-    void consoleIn ( QString command, bool user );
+    void consoleIn ( QString command, bool user, bool* succ = nullptr, void* res = nullptr, size_t rsize = 0 );
 
     void chatOut ( QString text );
 
 private slots:
   void on_action_Exit_triggered();
+  void on_action_Join_triggered();
+  void on_action_Rejoin_triggered();
+  void on_action_Disconnect_triggered();
   void toggle_widget( bool checked );
 
   // Console
   void conOut ( QString text );
-  void conIn ( QString command, bool user );
+  void conIn ( QString command, bool user, bool* succ = nullptr, void* res = nullptr, size_t rsize = 0 );
   void conHistoryFind ( bool up );
 
   void on_ConsoleIn_returnPressed();
@@ -71,11 +67,15 @@ private:
   std::vector<std::string> parse_cmd ( std::string& command );
   bool conHistoryUp ( std::ifstream* conHistory );
   bool conHistoryDown ( std::ifstream* conHistory ); 
+  std::string conInterpret ( std::string command, bool* succ, void* result, size_t rsize );
   // Chat
   QStringListModel* chatCompleterModel;
   // ServerList
+  int subnet_addr, subnet_mask;
+
   void addServer ( const char* ip, unsigned short port );
   void UpdateServerList();
+  void UpdateServerListIn();
   void clearServers();
 };
 

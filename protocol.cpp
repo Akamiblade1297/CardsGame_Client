@@ -439,27 +439,33 @@ namespace {
 }
 
 namespace protocol {
+    Connection* connection () {
+        return conn;
+    }
+    ErrorCode disconnect () {
+        if ( conn == nullptr ) return INVALID_SOCK;
+
+        delete conn; conn = nullptr;
+        flags[JOINED] = false;
+
+        emit mainWindow->chatOut("<i>Disconnected from server</i>");
+        return _NOERROR;
+    }
     ErrorCode connect ( const char* ip, unsigned short port ) {
         std::lock_guard<std::mutex> lock(muConnect);
-        if ( receiver_thread != nullptr ) {
-            receiver_thread->~thread();
-            delete receiver_thread;
-            receiver_thread = nullptr;
-        }
-        if ( conn != nullptr ) {
-            delete conn;
-            conn = nullptr;
-        }
-        flags[JOINED] = false;
+        if ( conn != nullptr) return INVALID_SOCK;
         bool suc;
         conn = new Connection( ip, port, &suc );
-        if ( !suc ) return SEND_ERROR;
+        if ( !suc ) {
+            conn = nullptr;
+            return SEND_ERROR;
+        }
         char buffer[14] = {0};
         conn->Receive(buffer, 13, 2);
-        if ( strcmp(buffer, "NOT_MUNCHKIN\n") != 0 )
+        if ( strcmp(buffer, "NOT_MUNCHKIN\n") != 0 ) {
+            conn = nullptr;
             return PROTOCOL_ERR;
-        else
-            return _NOERROR;
+        } else return _NOERROR;
     }
     ErrorCode join ( const char* username, char* result ) {
         std::lock_guard<std::mutex> lock(muJoin);
@@ -497,7 +503,7 @@ namespace protocol {
     }
     ErrorCode rejoin ( const char* pass ) {
         std::lock_guard<std::mutex> lock(muRejoin);
-        if ( !flags[JOINED] ) return PROTOCOL_ERR;
+        if ( flags[JOINED] ) return PROTOCOL_ERR;
         std::string temp = "REJOIN";
         temp+=DEL;
         temp.append(pass, 8);

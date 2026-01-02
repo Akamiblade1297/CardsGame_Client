@@ -123,6 +123,15 @@ public:
   }
 
   void Close () { this->~Connection(); }
+
+  std::string Address() {
+      char ip[INET_ADDRSTRLEN];
+
+      inet_ntop(AF_INET, &addr.sin_addr, ip, INET_ADDRSTRLEN);
+      unsigned short port = ntohs(addr.sin_port);
+
+      return std::string(ip)+':'+std::to_string(port);
+  }
 };
 
 /**

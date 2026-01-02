@@ -23,17 +23,25 @@ set(PROJECT_SOURCES
         protocol.cpp
         network.cpp
         console.cpp
-        functions.h
         chat.cpp
         chatcompleter.cpp
+        rejoindialog.cpp
+        joindialog.cpp
         serverlist.cpp
+        formlineedit.cpp
         string_func.h
-        mainwindow.h 
+        functions.h
+        mainwindow.h
         protocol.h
         network.h
         main.h
         chatcompleter.h
+        rejoindialog.h
+        joindialog.h
+        formlineedit.h
         mainwindow.ui
+        rejoindialog.ui
+        joindialog.ui
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

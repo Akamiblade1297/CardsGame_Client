@@ -2,6 +2,7 @@
 #include "mainwindow.h"
 #include "network.h"
 #include <QApplication>
+#include <QStyleFactory>
 #include <string>
 #include <filesystem>
 
