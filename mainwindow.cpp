@@ -5,6 +5,7 @@
 #include "rejoindialog.h"
 #include "joindialog.h"
 #include "protocol.h"
+#include "card.h"
 #include <string>
 #include <QScrollBar>
 #include <QShortcut>
@@ -14,7 +15,7 @@
 #include <QFormLayout>
 #include <QMessageBox>
 
-#define TABL_ENABLED false
+#define TABL_ENABLED true
 #define CHAT_ENABLED true
 #define CONS_ENABLED true
 #define SERV_ENABLED true
@@ -26,6 +27,8 @@ MainWindow::MainWindow (QWidget *parent)
 
   ui->setupUi (this);
   resize(screen()->availableGeometry().size() * 0.8);
+
+  connect(this, &MainWindow::checkForDeck, this, &MainWindow::on_CheckForDeck);
 
   // Console scroll down automaticly
   QScrollBar* bar = ui->ConsoleScrollArea->verticalScrollBar();
@@ -98,7 +101,7 @@ MainWindow::MainWindow (QWidget *parent)
   ui->splitter_TaSL->setStretchFactor(0,3);
   ui->splitter_TaSL->setStretchFactor(1,1);
 
-  ui->splitter_TaCC->setStretchFactor(0,5);
+  ui->splitter_TaCC->setStretchFactor(0,30);
   ui->splitter_TaCC->setStretchFactor(1,2);
 
   ui->splitter_CC->setStretchFactor(0,1);
@@ -114,6 +117,16 @@ MainWindow::MainWindow (QWidget *parent)
   ui->action_Chat      ->setChecked(CHAT_ENABLED);ui->Chat      ->setVisible(CHAT_ENABLED);
   ui->action_Console   ->setChecked(CONS_ENABLED);ui->Console   ->setVisible(CONS_ENABLED);
   ui->action_ServerList->setChecked(SERV_ENABLED);ui->ServerList->setVisible(SERV_ENABLED);
+
+  for ( int i = 0 ; i < 10 ; i++ ) {
+      CardFrame* card = new CardFrame(ui->TableFrame);
+      card->setFixedWidth(78);
+      card->setFixedHeight(120);
+      if ( i < 5 )
+          emit ui->Trapdoors->pushCard(card);
+      else
+          emit ui->Treasures->pushCard(card);
+  }
 }
 
 MainWindow::~MainWindow () {
@@ -166,4 +179,14 @@ void MainWindow::toggle_widget ( bool checked ) {
   } else if ( sender == ui->action_ServerList )  {
       ui->ServerList->setVisible(checked);
   }
+}
+
+void MainWindow::on_CheckForDeck( QPoint& point, DeckFrame*& deck ) {
+    if ( ui->Treasures->rect().contains(ui->Treasures->mapFromGlobal(point)) ) {
+        deck = ui->Treasures;
+    } else if ( ui->Trapdoors->rect().contains(ui->Trapdoors->mapFromGlobal(point)) ) {
+        deck = ui->Trapdoors;
+    } else {
+        deck = nullptr;
+    }
 }

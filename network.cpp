@@ -1,13 +1,67 @@
 #include "network.h"
 
-/**
- * @brief Vibecoded server scanner :p
- */
+
+Connection::Connection ( const char* ip, unsigned short port, bool* success ) {
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(ip);
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if ( sockfd == INVALID_SOCKET || connect( sockfd, (struct sockaddr*)&addr, sizeof(addr) ) == -1 ) {
+        *success = false;
+        return;
+    }
+
+    FD_ZERO(&readfd);
+    FD_SET(sockfd, &readfd);
+    timeout_opt.tv_sec = 0;
+    timeout_opt.tv_usec = 50;
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_opt, sizeof(timeout_opt));
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout_opt, sizeof(timeout_opt));
+    *success = true;
+}
+
+Connection::~Connection () {
+#ifdef _WIN32
+      shutdown(sockfd, SD_BOTH);
+#else
+      shutdown(sockfd, SHUT_RDWR);
+#endif
+      closesocket(sockfd);
+}
+
+int Connection::Send ( std::string message ) {
+    return send(sockfd, (message + DEL).data(), message.size()+1, 0);
+}
+
+int Connection::Receive ( char* buffer, size_t bufsize, int t_sec, int t_usec ) {
+    if ( t_sec > 0 || t_usec > 0 ) {
+      timeout.tv_sec = (t_sec >= 0) ? t_sec : 0;
+      timeout.tv_usec = (t_usec >= 0) ? t_usec : 0;
+      if      ( select(sockfd+1, &readfd, NULL, NULL, &timeout) <= 0 ) return -1;
+    } else if ( select(sockfd+1, &readfd, NULL, NULL, NULL) <= 0 ) return -1;
+    return recv(sockfd, buffer, bufsize, 0);
+}
+
+std::string Connection::Address() {
+      char ip[INET_ADDRSTRLEN];
+
+      inet_ntop(AF_INET, &addr.sin_addr, ip, INET_ADDRSTRLEN);
+      unsigned short port = ntohs(addr.sin_port);
+
+      return std::string(ip)+':'+std::to_string(port);
+}
+
+void Connection::Close () { this->~Connection(); }
+
 namespace {
     std::mutex resultMutex;
     std::atomic<bool> stopScan{false};
 }
 
+/**
+ * @brief Vibecoded server scanner :p
+ */
 namespace ServerScanner {
 
     // Check a single IP address for the server

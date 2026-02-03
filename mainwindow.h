@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "deck.h"
 #include <QMainWindow>
 #include <QStringListModel>
 #include <fstream>
@@ -29,12 +30,16 @@ signals:
 
     void chatOut ( QString text );
 
+    void checkForDeck ( QPoint& point, DeckFrame*& deck );
+
 private slots:
   void on_action_Exit_triggered();
   void on_action_Join_triggered();
   void on_action_Rejoin_triggered();
   void on_action_Disconnect_triggered();
   void toggle_widget( bool checked );
+
+  void on_CheckForDeck ( QPoint& point, DeckFrame*& deck );
 
   // Console
   void conOut ( QString text );

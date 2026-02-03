@@ -29,6 +29,8 @@ set(PROJECT_SOURCES
         joindialog.cpp
         serverlist.cpp
         formlineedit.cpp
+        card.cpp
+        deck.cpp
         string_func.h
         functions.h
         mainwindow.h
@@ -39,6 +41,8 @@ set(PROJECT_SOURCES
         rejoindialog.h
         joindialog.h
         formlineedit.h
+        card.h
+        deck.h
         mainwindow.ui
         rejoindialog.ui
         joindialog.ui
