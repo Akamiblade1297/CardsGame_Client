@@ -1,4 +1,6 @@
-#include "main.h"
+#include "cardcontainer.h"
+#include "deck.h"
+#include "players.h"
 #include <string>
 
 bool isVisible( std::string containerName ) {
@@ -20,15 +22,15 @@ std::string* StatByName ( std::string name, Player* player ) {
 
 CardContainer* containerByName ( std::string name, Player* player ) {
     if ( name == "TABLE" ) {
-        return &table;
+        return &Table;
     } else if ( name == "TREASURES" ) {
-        return &table.Treasures;
+        return &Treasures;
     } else if ( name == "TRAPDOORS" ) {
-        return &table.TrapDoors;
+        return &Trapdoors;
     } else if ( name == "INVENTORY" ) {
-        return &player->Inventory;
+        //return &player->Inventory;
     } else if ( name == "EQUIPPED" ) {
-        return &player->Equiped;
+        //return &player->Equiped;
     } else {
         return nullptr;
     }
@@ -36,9 +38,9 @@ CardContainer* containerByName ( std::string name, Player* player ) {
 
 Deck* deckByName ( std::string name ) {
     if ( name == "TREASURES" ) {
-        return &table.Treasures;
+        return &Treasures;
     } else if ( name == "TRAPDOORS" ) {
-        return &table.TrapDoors;
+        return &Trapdoors;
     } else {
         return nullptr;
     }
@@ -46,11 +48,11 @@ Deck* deckByName ( std::string name ) {
 
 CardContainer* spatialByName ( std::string name, Player* player ) {
     if ( name == "TABLE" ) {
-        return &table;
+        return &Table;
     } else if ( name == "INVENTORY" ) {
-        return &player->Inventory;
+        //return &player->Inventory;
     } else if ( name == "EQUIPPED" ) {
-        return &player->Equiped;
+        //return &player->Equiped;
     } else {
         return nullptr;
     }

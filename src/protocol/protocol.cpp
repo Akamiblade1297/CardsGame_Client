@@ -1,8 +1,9 @@
 #include "protocol.h"
 #include "functions.h"
-#include "string_func.h"
-#include "network.h"
-#include "main.h"
+#include "players.h"
+#include "../other/stringfunc.h"
+#include "../other/network.h"
+#include "../ui/mainwindow.h"
 #include <deque>
 #include <mutex>
 #include <string>
@@ -13,7 +14,8 @@
 #include <chrono>
 #include <bitset>
 #include <iostream>
-#include "mainwindow.h"
+#include <QThread>
+#include <QCoreApplication>
 
 #define BUFSIZE 1128
 
@@ -131,8 +133,8 @@ namespace {
     std::mutex muPlayers;
 
     char ping_data[9] = {0};
-    std::vector<Card>* _see;
-    std::vector<Card>* _cards;
+    CardContainer* _see;
+    CardContainer* _cards;
     std::string* _stats;
     std::vector<std::string>* _players;
 
@@ -146,7 +148,7 @@ namespace {
             if ( received[0] == "JOIN" ) { // JOIN <player>
                 size = 2; CHECK_SIZE;
 
-                playerMgr.playerByName(received[1]);
+                Players[received[1]];
                 emit mainWindow->consoleOut(QString::fromStdString(received[1]+" joined"));
                 emit mainWindow->chatOut(QString::fromStdString("<i>"+received[1]+" joined</i>"));
             } else if ( received[0] == "WHISPER_SUC" ) { // WHISPER_SUC
@@ -221,7 +223,7 @@ namespace {
             } else if ( received[0] == "CHAT" ) { // CHAT <player> <message>
                 size = 3; CHECK_SIZE;
                 emit mainWindow->consoleOut(QString::fromStdString(received[1]+": \""+received[2]+"\""));
-                emit mainWindow->chatOut(QString::fromStdString("<i><font color="+playerMgr.playerByName(received[1])->Color+">"+received[1]+"</font></i>"+" : "+received[2]));
+                emit mainWindow->chatOut(QString::fromStdString("<i><font color="+Players[received[1]]->Color+">"+received[1]+"</font></i>"+" : "+received[2]));
             } else if ( received[0] == "ACT" ) { // ACT <player> <action>
                 size = 3; CHECK_SIZE;
                 emit mainWindow->consoleOut(QString::fromStdString(received[1]+" *"+received[2]+"*"));
@@ -237,17 +239,18 @@ namespace {
                 std::string msg_temp = " rolled "+received[3]+'d'+received[2]+' ';
                 for ( int i = 4 ; i < size ; i++ ) msg_temp += received[i] + ' ';
                 emit mainWindow->consoleOut(QString::fromStdString(received[1]+msg_temp));
-                emit mainWindow->chatOut(QString::fromStdString("<i><font color="+playerMgr.playerByName(received[1])->Color+">"+received[1]+"</font>"+msg_temp+"</i>"));
+                emit mainWindow->chatOut(QString::fromStdString("<i><font color="+Players[received[1]]->Color+">"+received[1]+"</font>"+msg_temp+"</i>"));
 
                 ErRoll = _NOERROR;
                 flags[ROLL_R] = true;
             } else if ( received[0] == "SEE" ) { // SEE <card1> <card2> ... <cardn> END
-                size = 2;
+                size = 2;CHECK_SIZE;
+                _see->clear();
                 while (1) {
                     if ( received[size-1] == "END" ) break;
                     std::vector<std::string> scard = split(received[size-1].data(), ' ');
-                    Card card;
-                    if ( card.parse_card(scard[0]) == -1 ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_SEE");
+                    Card* card = new Card();
+                    if ( card->parse_card(scard[0]) == -1 ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_SEE");
 
                     int x, y, rot;
                     try {
@@ -255,9 +258,9 @@ namespace {
                         y = std::stoi(scard[2]);
                         rot = std::stoi(scard[3]);
                     } catch (std::invalid_argument) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_SEE");} catch (std::out_of_range) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_SEE");}
-                    card.transform(x, y);
-                    card.rotate(rot);
-                    _see->push_back(card);
+                    card->transform(x, y);
+                    card->rotate(rot);
+                    _see->push(card);
 
                     size++;CHECK_SIZE;
                 }
@@ -266,11 +269,12 @@ namespace {
                 flags[SEE_R] = true;
             } else if ( received[0] == "CARDS" ) { // CARDS <card1> <card2> ... <cardn> END
                 size = 2;CHECK_SIZE;
+                _cards->clear();
                 while (1) {
                     if ( received[size-1] == "END" ) break;
                     std::vector<std::string> scard = split(received[size-1].data(), ' ');
-                    Card card;
-                    if ( card.parse_card(scard[0]) == -1 ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_CARDS");
+                    Card* card = new Card();
+                    if ( card->parse_card(scard[0]) == -1 ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_CARDS");
 
                     int x, y, rot;
                     try {
@@ -278,9 +282,9 @@ namespace {
                         y = std::stoi(scard[2]);
                         rot = std::stoi(scard[3]);
                     } catch (std::invalid_argument) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_CARDS");} catch (std::out_of_range) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_CARDS");}
-                    card.transform(x, y);
-                    card.rotate(rot);
-                    _cards->push_back(card);
+                    card->transform(x, y);
+                    card->rotate(rot);
+                    _cards->push(card);
 
                     size++;CHECK_SIZE;
                 }
@@ -300,7 +304,7 @@ namespace {
                 while (1) {
                     if ( received[size-1] == "END" ) break;
                     _players->push_back(received[size-1]);
-                    playerMgr.playerByName(received[size-1]);
+                    Players[received[size-1]];
 
                     size++;CHECK_SIZE;
                 }
@@ -312,7 +316,7 @@ namespace {
                 flags[PONG_R] = true;
             } else if ( received[0] == "NOTIFY" ) { // NOTIFY <player> ...
                 size = 3; CHECK_SIZE;
-                Player* sender = playerMgr.playerByName(received[1]) ;
+                Player* sender = Players[received[1]];
                 constexpr int i = 2;
 
                 if ( received[i] == "DECK" ) { // DECK <deck src> <dest> <x> <y> <card>
@@ -322,8 +326,8 @@ namespace {
                     if ( dest == nullptr || src == nullptr ) throw ProtocolCriticalError(CRIT__BAD_CONTAINER, "_worker_DECK");
                     if ( src->pop_and_move(received[i+ 3], received[i+ 4], dest, received[i+ 5]) != 0 ) throw ProtocolCriticalError(CRIT__EMPTY_DECK, "_worker_DECK");
 
-                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" drawed Card_"+received[i+ 5]+" from "+received[i+ 1]+" to "+received[i+ 2]+"["+std::to_string(dest->Cards.size()-1)+"] (X: "+received[i+ 3]+", Y: "+received[i+ 4]+")"));
-                    if ( sender == &LOCALPLAYER ) {
+                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" drawed Card_"+received[i+ 5]+" from "+received[i+ 1]+" to "+received[i+ 2]+"["+std::to_string(dest->size()-1)+"] (X: "+received[i+ 3]+", Y: "+received[i+ 4]+")"));
+                    if ( sender == LOCALPLAYER ) {
                         ErDeck = _NOERROR;
                         flags[DECK_R] = true;
                     }
@@ -334,8 +338,8 @@ namespace {
                     if ( dest == nullptr || src == nullptr ) throw ProtocolCriticalError(CRIT__BAD_CONTAINER, "_worker_MOVE");
                     if ( src->move(received[i+ 2], received[i+ 4], received[i+ 5], dest, received[i+ 6]) != 0 ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_MOVE");
 
-                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" moved Card_"+received[i+ 6]+" from "+received[i+ 1]+"["+received[i+ 2]+"] to "+received[i+ 3]+"["+std::to_string(dest->Cards.size()-1)+"] (X: "+received[i+ 4]+", Y: "+received[i+ 5]+")"));
-                    if ( sender == &LOCALPLAYER ) {
+                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" moved Card_"+received[i+ 6]+" from "+received[i+ 1]+"["+received[i+ 2]+"] to "+received[i+ 3]+"["+std::to_string(dest->size()-1)+"] (X: "+received[i+ 4]+", Y: "+received[i+ 5]+")"));
+                    if ( sender == LOCALPLAYER ) {
                         ErMove = _NOERROR;
                         flags[MOVE_R] = true;
                     }
@@ -346,7 +350,7 @@ namespace {
                     container->rotate(received[i+ 2], received[i+ 3]);
 
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" rotated Card_"+container->at(received[i+ 2])->unparse_card()+" on "+received[i+ 1]+"["+received[i+ 2]+"] (Rot: "+received[i+ 3]+")"));
-                    if ( sender == &LOCALPLAYER ) {
+                    if ( sender == LOCALPLAYER ) {
                         ErRot = _NOERROR;
                         flags[ROT_R] = true;
                     }
@@ -360,7 +364,7 @@ namespace {
                     else if ( card->parse_card(received[i+ 3]) == -1 ) throw ProtocolCriticalError(CRIT__BAD_CARD, "_worker_FLIP");
 
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" flipped Card on "+received[i+ 1]+"["+received[i+ 2]+"] ("+old_num+" -> "+card->unparse_card()+")"));
-                    if ( sender == &LOCALPLAYER ) {
+                    if ( sender == LOCALPLAYER ) {
                         ErFlip = _NOERROR;
                         flags[FLIP_R] = true;
                     }
@@ -368,7 +372,7 @@ namespace {
                     size += 1; CHECK_SIZE;
 
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" shuffled "+received[i+ 1]));
-                    if ( sender == &LOCALPLAYER ) {
+                    if ( sender == LOCALPLAYER ) {
                         flags[SHUF_S] = true;
                         flags[SHUF_R] = true;
                     }
@@ -380,15 +384,16 @@ namespace {
                     } else *Stat = received[i+ 2];
 
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" set "+received[i+ 1]+" to "+received[i+ 2]));
-                    if ( sender == &LOCALPLAYER ) {
+                    if ( sender == LOCALPLAYER ) {
                         ErSet = _NOERROR;
                         flags[SET_R] = true;
                     }
                 } else if ( received[i] == "RENAME" ) { // RENAME <new_name>
                     size += 1; CHECK_SIZE;
-                    sender->Name = received[i+ 1];
+                    Players.erase(received[1]);
+                    Players.emplace(received[i+ 1], sender);
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" renamed to "+received[i+ 1]));
-                    if ( sender == &LOCALPLAYER ) {
+                    if ( sender == LOCALPLAYER ) {
                         flags[RNM_S] = true;
                         flags[RNM_R] = true;
                     }
@@ -418,8 +423,11 @@ namespace {
         if ( flags[JOINED] ) throw ProtocolCriticalError(CRIT__ALREADY_JOINED, "_join");
         flags[JOINED] = true;
 
-        playerMgr.Players.erase(playerMgr.Players.begin(), playerMgr.Players.end());
-        playerMgr.Players.push_back(Player(username));
+        localplayer = new Player(username);
+        localusername = username;
+
+        Players.erase(Players.begin(), Players.end());
+        Players.emplace(username, localplayer);
 
         receiver_thread = new std::thread(_receiver);
         receiver_thread->detach();
@@ -439,6 +447,9 @@ namespace {
 }
 
 namespace protocol {
+    Player* localplayer;
+    std::string localusername;
+
     Connection* connection () {
         return conn;
     }
@@ -660,7 +671,7 @@ namespace protocol {
         while ( !flags[RNM_R] ) {}
         return flags[RNM_S] ? _NOERROR : RENAME;
     }
-    ErrorCode see ( std::string container, std::vector<Card>* res ) {
+    ErrorCode see ( std::string container, CardContainer* res ) {
         if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muSee);
         _see = res;
@@ -672,7 +683,7 @@ namespace protocol {
         while ( ! flags[SEE_R] ) {}
         return flags[SEE_S] ? _NOERROR : NOT_FOUND;
     }
-    ErrorCode cards ( std::string container, std::vector<Card>* res ) {
+    ErrorCode cards ( std::string container, CardContainer* res ) {
         if ( !flags[JOINED] ) return PROTOCOL_ERR;
         std::lock_guard<std::mutex> lock(muCards);
         _cards = res;
@@ -681,8 +692,17 @@ namespace protocol {
         if ( conn->Send(temp+DEL+container ) == -1 ) return SEND_ERROR;
 
         flags[CRDS_R] = false;
-        while ( ! flags[CRDS_R] ) {}
-        return flags[CRDS_S] ? _NOERROR : NOT_FOUND;
+        while ( ! flags[CRDS_R] ) {
+            QCoreApplication::processEvents();
+        }
+        if ( !flags[CRDS_S] ) {
+            return NOT_FOUND;
+        }
+        
+        for ( int i = 0 ; i < _cards->size() ; i++ ) {
+            _cards->at(i)->updateFrame();
+        }
+        return _NOERROR;
     }
     ErrorCode stat ( std::string player, std::string* res ) {
         if ( !flags[JOINED] ) return PROTOCOL_ERR;

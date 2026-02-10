@@ -1,7 +1,9 @@
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
+
+#include "players.h"
+#include "deck.h"
 #include <string>
-#include "main.h"
 
 /**
  * Get Player's Stat by Name

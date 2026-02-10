@@ -1,5 +1,5 @@
 #include "joindialog.h"
-#include "./ui_joindialog.h"
+#include "../../ui/ui_joindialog.h"
 #include "mainwindow.h"
 #include <QDialogButtonBox>
 #include <QPushButton>

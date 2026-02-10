@@ -3,7 +3,13 @@
 
 #include <QDialog>
 #include <QString>
-#include "./ui_rejoindialog.h"
+
+QT_BEGIN_NAMESPACE
+namespace Ui
+{
+class RejoinDialog;
+};
+QT_END_NAMESPACE
 
 class RejoinDialog : public QDialog {
     Q_OBJECT

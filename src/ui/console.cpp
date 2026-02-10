@@ -1,8 +1,9 @@
 #include "mainwindow.h"
-#include "./ui_mainwindow.h"
-#include "protocol.h"
-#include "string_func.h"
-#include "functions.h"
+#include "../../ui/ui_mainwindow.h"
+#include "../protocol/protocol.h"
+#include "../protocol/deck.h"
+#include "../protocol/functions.h"
+#include "../other/stringfunc.h"
 #include <bitset>
 #include <string>
 #include <utility>
@@ -10,7 +11,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <cmath>
 #include <QScrollBar>
 
 std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
@@ -131,7 +131,8 @@ std::vector<std::string> MainWindow::parse_cmd ( std::string& command ) {
         } else if ( command[i] == '\\' ) {
             flags[ESC] = true;
         } else {
-            if ( flags[QUOTED] || flags[SQUOTED] ) res[0] = "PARSE ERROR: Expected ' ', got '"+command[i]+'\'';
+            std::string r = "PARSE ERROR: Expected ' ', got '";
+            if ( flags[QUOTED] || flags[SQUOTED] ) res[0] = r+command[i]+'\'';
             flags[SPACE] = false;
         }
     }
@@ -469,7 +470,7 @@ std::string MainWindow::conInterpret ( std::string command, bool* succ, void* re
             ans = "ERROR: Not found deck";
             success = false;
             if  ( store_res && rsize >= sizeof(int) ) *(int*)result = protocol::NOT_FOUND+27;
-        } else if ( deck->Cards.empty() ) {
+        } else if ( deck->empty() ) {
             ans = "ERROR: Local deck is empty. Try running \"cards "+cmd[2]+"\"";
             success = false;
             if  ( store_res && rsize >= sizeof(int) ) *(int*)result = protocol::EMPTY+27;
@@ -721,33 +722,31 @@ std::string MainWindow::conInterpret ( std::string command, bool* succ, void* re
     } else if ( cmd.size() >= 3 && cmd[1] == "see" ) { // see [visible]
         cmdsize = 3;
 
-        CardContainer* spatial = spatialByName(cmd[2], &LOCALPLAYER);
-        Player* plr = playerMgr.playerByName(cmd[2]);
-        std::vector<Card>* cards = nullptr;
+        CardContainer* spatial = spatialByName(cmd[2], LOCALPLAYER);
+        Player* plr = Players[cmd[2]];
+        CardContainer* cards = nullptr;
 
         if ( spatial == nullptr ) {
             if ( plr == nullptr ) {
                 ans = "ERROR: No such spatial or player \""+cmd[2]+"\"";
                 success = false;
             } else {
-                cards = &plr->Equiped.Cards;
+                cards = plr->Equiped;
             }
-        } else cards = &spatial->Cards;
+        } else cards = spatial;
 
         if ( cards == nullptr && store_res && rsize >= sizeof(int) ) {
             *(int*)result = protocol::NOT_FOUND+27;
         } else {
-            int old_size = cards->size();
             protocol::ErrorCode res = protocol::see(cmd[2], cards);
             if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
 
             switch ( res ) {
                 case protocol::_NOERROR:
-                    cards->erase(cards->begin(), cards->begin()+old_size);
                     ans = "ID:\tNumber:\tX:\tY:\tRotation:\n\n";
                     for ( int i = 0 ; i < cards->size() ; i++ ) {
-                        Card crd = cards->at(i);
-                        ans += std::to_string(i) + '\t' + crd.unparse_card() + '\t' + std::to_string(crd.X) + '\t' + std::to_string(crd.Y) + '\t' + std::to_string(crd.Rotation) + '\n';
+                        Card* crd = cards->at(i);
+                        ans += std::to_string(i) + '\t' + crd->unparse_card() + '\t' + std::to_string(crd->x()) + '\t' + std::to_string(crd->y()) + '\t' + std::to_string(crd->rot()) + '\n';
                     }
                     success = true;
                     break;
@@ -773,32 +772,30 @@ std::string MainWindow::conInterpret ( std::string command, bool* succ, void* re
         cmdsize = 3;
 
         Deck* deck = deckByName(cmd[2]);
-        Player* plr = playerMgr.playerByName(cmd[2]);
-        std::vector<Card>* cards = nullptr;
+        Player* plr = Players[cmd[2]];
+        CardContainer* cards = nullptr;
 
         if ( deck == nullptr ) {
             if ( plr == nullptr ) {
                 ans = "ERROR: No such deck or player \""+cmd[2]+"\"";
                 success = false;
             } else {
-                cards = &plr->Inventory.Cards;
+                cards = plr->Inventory;
             }
-        } else cards = &deck->Cards;
+        } else cards = deck;
 
         if ( cards == nullptr && store_res && rsize >= sizeof(int) ) {
             *(int*)result = protocol::NOT_FOUND+27;
         } else {
-            int old_size = cards->size();
             protocol::ErrorCode res = protocol::cards(cmd[2], cards);
             if ( store_res && rsize >= sizeof(int) ) *(int*)result = res;
 
             switch ( res ) {
                 case protocol::_NOERROR:
-                    cards->erase(cards->begin(), cards->begin()+old_size);
                     ans = "ID:\tNumber:\tX:\tY:\tRotation:\n\n";
                     for ( int i = 0 ; i < cards->size() ; i++ ) {
-                        Card crd = cards->at(i);
-                        ans += std::to_string(i) + '\t' + crd.unparse_card() + '\t' + std::to_string(crd.X) + '\t' + std::to_string(crd.Y) + '\t' + std::to_string(crd.Rotation) + '\n';
+                        Card* crd = cards->at(i);
+                        ans += std::to_string(i) + '\t' + crd->unparse_card() + '\t' + std::to_string(crd->x()) + '\t' + std::to_string(crd->y()) + '\t' + std::to_string(crd->rot()) + '\n';
                     }
                     success = true;
                     break;
@@ -823,7 +820,7 @@ std::string MainWindow::conInterpret ( std::string command, bool* succ, void* re
     } else if ( cmd.size() >= 3 && cmd[1] == "stat" ) { // stat [player]
         cmdsize = 3;
 
-        Player* plr = playerMgr.playerByName(cmd[2]);
+        Player* plr = Players[cmd[2]];
 
         if ( plr == nullptr ) {
             ans = "ERROR: No such player \""+cmd[2]+"\"";
@@ -894,7 +891,7 @@ std::string MainWindow::conInterpret ( std::string command, bool* succ, void* re
             std::ostringstream answer;
             answer << "Connected\n";
             answer << "    Server: " << conn->Address() << '\n';
-            answer << "    LocalPlayer: " << LOCALPLAYER.Name << '\n';
+            answer << "    LocalPlayer: " << LOCALUSERNAME << '\n';
 
             ans = answer.str();
             success = true;
@@ -963,7 +960,10 @@ std::string MainWindow::conInterpret ( std::string command, bool* succ, void* re
     }
     if ( command != "" ) {
         if ( command[0] == ';' || ( command[0] == '&' && success ) || ( command[0] == '|' && !success ) ) {
-            if ( store_res ) *(char*)result++;
+            if ( store_res ) {
+                char* res = (char*)result;
+                (*res)++;
+            }
             std::string ans2 = conInterpret(command.substr(1, command.size()-1), &success, result, rsize);
             if ( ans2 == "CLEAR" ) ans = ans2;
             else ans += ( ( ans == "" || ans2 == "" ) ? "" : "\n" ) + ans2;

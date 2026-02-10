@@ -2,13 +2,15 @@
 #define PROTOCOL_H
 #include <vector>
 #include <string>
-#include "network.h"
-#include "main.h"
+#include "../other/network.h"
+#include "players.h"
 
-#define LOCALPLAYER playerMgr.Players[0]
+#define LOCALPLAYER protocol::localplayer
+#define LOCALUSERNAME protocol::localusername
 
 namespace protocol {
     extern Player* localplayer;
+    extern std::string localusername;
 
     class ProtocolCriticalError;
 
@@ -161,14 +163,14 @@ namespace protocol {
      * @param res Cards array to store gotten cards
      * @return NOERROR, NOT_FOUND, SEND_ERROR, PROTOCOL_ERR
      */
-    ErrorCode see ( std::string container, std::vector<Card>* res );
+    ErrorCode see ( std::string container, CardContainer* res );
     /**
      * @brief Get all cards in non-visible containers
      * @param container Container
      * @param res Cards array to store gotten cards
      * @return NOERROR, NOT_FOUND, SEND_ERROR, PROTOCOL_ERR
      */
-    ErrorCode cards ( std::string container, std::vector<Card>* res );
+    ErrorCode cards ( std::string container, CardContainer* res );
     /**
      * @brief Get all stats of a player
      * @param player Player

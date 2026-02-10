@@ -1,12 +1,12 @@
 #include "mainwindow.h"
-#include "./ui_mainwindow.h"
+#include "../../ui/ui_mainwindow.h"
+#include "../other/network.h"
+#include "../protocol/protocol.h"
+#include "../protocol/deck.h"
 #include "chatcompleter.h"
-#include "network.h"
 #include "rejoindialog.h"
 #include "joindialog.h"
-#include "protocol.h"
-#include "card.h"
-#include <string>
+#include <iostream>
 #include <QScrollBar>
 #include <QShortcut>
 #include <QScreen>
@@ -27,8 +27,6 @@ MainWindow::MainWindow (QWidget *parent)
 
   ui->setupUi (this);
   resize(screen()->availableGeometry().size() * 0.8);
-
-  connect(this, &MainWindow::checkForDeck, this, &MainWindow::on_CheckForDeck);
 
   // Console scroll down automaticly
   QScrollBar* bar = ui->ConsoleScrollArea->verticalScrollBar();
@@ -118,15 +116,15 @@ MainWindow::MainWindow (QWidget *parent)
   ui->action_Console   ->setChecked(CONS_ENABLED);ui->Console   ->setVisible(CONS_ENABLED);
   ui->action_ServerList->setChecked(SERV_ENABLED);ui->ServerList->setVisible(SERV_ENABLED);
 
-  for ( int i = 0 ; i < 10 ; i++ ) {
-      CardFrame* card = new CardFrame(ui->TableFrame);
-      card->setFixedWidth(78);
-      card->setFixedHeight(120);
-      if ( i < 5 )
-          emit ui->Trapdoors->pushCard(card);
-      else
-          emit ui->Treasures->pushCard(card);
-  }
+  Table     = CardContainer(ui->TableFrame);
+  Treasures = Deck(ui->TableFrame, ui->Treasures);
+  Trapdoors = Deck(ui->TableFrame, ui->Trapdoors);
+
+  // for ( int i = 0 ; i < 90 ; i++ ) {
+  //     CardFrame* frame = new CardFrame(ui->TableFrame);
+  //     Card* card = new Card(TRAP, frame);
+  //     Trapdoors.push(card);
+  // }
 }
 
 MainWindow::~MainWindow () {
@@ -181,12 +179,12 @@ void MainWindow::toggle_widget ( bool checked ) {
   }
 }
 
-void MainWindow::on_CheckForDeck( QPoint& point, DeckFrame*& deck ) {
+void MainWindow::checkForDeck( QPoint& point, std::string& deck ) const {
     if ( ui->Treasures->rect().contains(ui->Treasures->mapFromGlobal(point)) ) {
-        deck = ui->Treasures;
+        deck = "TREASURES";
     } else if ( ui->Trapdoors->rect().contains(ui->Trapdoors->mapFromGlobal(point)) ) {
-        deck = ui->Trapdoors;
+        deck = "TRAPDOORS";
     } else {
-        deck = nullptr;
+        deck = "";
     }
 }

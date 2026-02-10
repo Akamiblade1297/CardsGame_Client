@@ -59,12 +59,11 @@ QPushButton:pressed {
        </property>
        <widget class="QWidget" name="Table" native="true">
         <property name="styleSheet">
-         <string notr="true">CardFrame {
-	background-color: green;
-    border: 1px solid blue;
-}
-DeckFrame {
+         <string notr="true">QLabel {
 	border: 1px solid black;
+}
+CardFrame {
+	border: 0px;
 }</string>
         </property>
         <layout class="QGridLayout" name="gridLayout_3">
@@ -76,36 +75,30 @@ DeckFrame {
            <property name="frameShadow">
             <enum>QFrame::Shadow::Raised</enum>
            </property>
-           <widget class="DeckFrame" name="Treasures">
+           <widget class="QLabel" name="Treasures">
             <property name="geometry">
              <rect>
-              <x>20</x>
+              <x>30</x>
               <y>20</y>
               <width>80</width>
               <height>122</height>
              </rect>
             </property>
-            <property name="frameShape">
-             <enum>QFrame::Shape::StyledPanel</enum>
-            </property>
-            <property name="frameShadow">
-             <enum>QFrame::Shadow::Raised</enum>
+            <property name="text">
+             <string/>
             </property>
            </widget>
-           <widget class="DeckFrame" name="Trapdoors">
+           <widget class="QLabel" name="Trapdoors">
             <property name="geometry">
              <rect>
-              <x>110</x>
+              <x>130</x>
               <y>20</y>
               <width>80</width>
               <height>122</height>
              </rect>
             </property>
-            <property name="frameShape">
-             <enum>QFrame::Shape::StyledPanel</enum>
-            </property>
-            <property name="frameShadow">
-             <enum>QFrame::Shadow::Raised</enum>
+            <property name="text">
+             <string/>
             </property>
            </widget>
           </widget>
@@ -171,8 +164,8 @@ DeckFrame {
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>360</width>
-               <height>331</height>
+               <width>361</width>
+               <height>333</height>
               </rect>
              </property>
              <layout class="QGridLayout" name="gridLayout_7">
@@ -297,8 +290,8 @@ DeckFrame {
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>402</width>
-               <height>331</height>
+               <width>401</width>
+               <height>333</height>
               </rect>
              </property>
              <layout class="QGridLayout" name="gridLayout_6">
@@ -422,7 +415,7 @@ QLineEdit {
           <x>0</x>
           <y>0</y>
           <width>200</width>
-          <height>469</height>
+          <height>472</height>
          </rect>
         </property>
         <property name="minimumSize">
@@ -542,7 +535,7 @@ QPushButton:pressed {
      <x>0</x>
      <y>0</y>
      <width>1026</width>
-     <height>25</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="File">
@@ -639,14 +632,6 @@ QPushButton:pressed {
    </property>
   </action>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>DeckFrame</class>
-   <extends>QFrame</extends>
-   <header location="global">../../../../deck.h</header>
-   <container>1</container>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

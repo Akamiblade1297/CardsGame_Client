@@ -1,7 +1,7 @@
 #include "mainwindow.h"
-#include "./ui_mainwindow.h"
-#include "string_func.h"
-#include "main.h"
+#include "../../ui/ui_mainwindow.h"
+#include "../other/stringfunc.h"
+#include "../protocol/players.h"
 #include <QCompleter>
 #include <QAbstractItemView>
 
@@ -73,8 +73,8 @@ void MainWindow::on_ChatIn_textEdited(const QString &text) {
             completer->setCompletionPrefix("");
         } else {
             QStringList playerlist;
-            for ( int i = 1 ; i < playerMgr.Players.size() ; i++ ) {
-                playerlist << QString::fromStdString(playerMgr.Players[i].Name);
+            for ( auto [username, player] : Players ) {
+                playerlist << QString::fromStdString(username);
             } chatCompleterModel->setStringList(playerlist);
             completer->setCompletionPrefix(rtext);
             if ( completer->completionCount() > 0 )

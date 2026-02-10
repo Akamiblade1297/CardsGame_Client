@@ -1,8 +1,6 @@
 #include "mainwindow.h"
-#include "./ui_mainwindow.h"
-#include "protocol.h"
-#include <functional>
-#include <iostream>
+#include "../../ui/ui_mainwindow.h"
+#include "../other/network.h"
 #include <cstdio>
 #include <QInputDialog>
 #include <QMessageBox>

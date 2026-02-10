@@ -16,42 +16,57 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
 set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        functions.cpp
-        string_func.cpp
-        protocol.cpp
-        network.cpp
-        console.cpp
-        chat.cpp
-        chatcompleter.cpp
-        rejoindialog.cpp
-        joindialog.cpp
-        serverlist.cpp
-        formlineedit.cpp
-        card.cpp
-        deck.cpp
-        string_func.h
-        functions.h
-        mainwindow.h
-        protocol.h
-        network.h
-        main.h
-        chatcompleter.h
-        rejoindialog.h
-        joindialog.h
-        formlineedit.h
-        card.h
-        deck.h
-        mainwindow.ui
-        rejoindialog.ui
-        joindialog.ui
+        src/main.cpp
+
+        src/ui/mainwindow.cpp
+        src/ui/console.cpp
+        src/ui/chat.cpp
+        src/ui/chatcompleter.cpp
+        src/ui/rejoindialog.cpp
+        src/ui/joindialog.cpp
+        src/ui/serverlist.cpp
+        src/ui/formlineedit.cpp
+        src/ui/cardframe.cpp
+
+        src/ui/mainwindow.h
+        src/ui/chatcompleter.h
+        src/ui/rejoindialog.h
+        src/ui/joindialog.h
+        src/ui/formlineedit.h
+        src/ui/cardframe.h
+
+        src/protocol/functions.cpp
+        src/protocol/protocol.cpp
+        src/protocol/deck.cpp
+        src/protocol/card.cpp
+        src/protocol/players.cpp
+        src/protocol/cardcontainer.cpp
+
+        src/protocol/functions.h
+        src/protocol/protocol.h
+        src/protocol/deck.h
+        src/protocol/card.h
+        src/protocol/players.h
+        src/protocol/cardcontainer.h
+
+        src/other/stringfunc.cpp
+        src/other/network.cpp
+
+        src/other/stringfunc.h
+        src/other/network.h
+
+        ui/mainwindow.ui
+        ui/rejoindialog.ui
+        ui/joindialog.ui
+
+        cards.qrc
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(CardsGame_Client
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
+
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET CardsGame_Client APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

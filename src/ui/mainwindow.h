@@ -1,10 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "deck.h"
+#include <QLabel>
 #include <QMainWindow>
 #include <QStringListModel>
 #include <fstream>
+#include "cardframe.h"
 
 #define CONHISTORY gameDir+".console_history"
 #define CHAT_CMDS { "/me", "/whisper", "/roll", "/clear" }
@@ -23,6 +24,8 @@ class MainWindow : public QMainWindow
 public:
   MainWindow (QWidget *parent = nullptr);
   ~MainWindow ();
+  void checkForDeck ( QPoint& point, std::string& deck ) const;
+  CardFrame* createCardFrame();
 
 signals:
     void consoleOut ( QString text );
@@ -30,16 +33,12 @@ signals:
 
     void chatOut ( QString text );
 
-    void checkForDeck ( QPoint& point, DeckFrame*& deck );
-
 private slots:
   void on_action_Exit_triggered();
   void on_action_Join_triggered();
   void on_action_Rejoin_triggered();
   void on_action_Disconnect_triggered();
   void toggle_widget( bool checked );
-
-  void on_CheckForDeck ( QPoint& point, DeckFrame*& deck );
 
   // Console
   void conOut ( QString text );
@@ -50,6 +49,7 @@ private slots:
   void on_ConsoleIn_textEdited();
   void on_ConsoleVerticalScrollbar_rangeChanged();
   void on_ConsoleVerticalScrollbar_valueChanged();
+
   // Chat
   void on_chatOut ( QString text );
 
@@ -59,6 +59,7 @@ private slots:
   // ServerList
   void ServerListContextMenu ( const QPoint& pos );
   void on_joinServerButton_pressed();
+
 private:
   Ui::MainWindow *ui;
   // Console

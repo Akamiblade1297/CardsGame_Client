@@ -1,6 +1,4 @@
-#include "main.h"
-#include "mainwindow.h"
-#include "network.h"
+#include "ui/mainwindow.h"
 #include <QApplication>
 #include <QStyleFactory>
 #include <string>
@@ -10,14 +8,10 @@
 #include <windows.h>
 #else
 #include <unistd.h>
-#include <limits.h>
 #endif
 
-Table table;
-PlayerManager playerMgr;
-MainWindow* mainWindow;
-
 std::string gameDir;
+MainWindow* mainWindow;
 
 void getGameDirectory () {
 #if _WIN32
@@ -46,16 +40,17 @@ void getGameDirectory () {
         gameDir += '/';
 #endif
     }
-
 }
 
 int main (int argc, char *argv[])
 {
+  qRegisterMetaType<QPixmap>();
   getGameDirectory();
+
   QApplication a (argc, argv);
   MainWindow w;
+  mainWindow = &w;
   w.show();
 
-  mainWindow = &w;
   return a.exec ();
 }

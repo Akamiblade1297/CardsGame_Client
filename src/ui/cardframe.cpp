@@ -1,19 +1,25 @@
-#include "card.h"
-#include "deck.h"
+#include "../protocol/card.h"
+#include "cardframe.h"
 #include "mainwindow.h"
 #include <QGraphicsOpacityEffect>
 #include <QMouseEvent>
+#include <QPixmap>
+#include <QPalette>
+#include <QPainter>
 
-CardFrame::CardFrame(QWidget *parent)
-    : QFrame{parent},
+CardFrame::CardFrame( class Card* card, QWidget *parent)
+    : QLabel{parent},
+    card(card),
     is_dragging{false},
-    dragable{true},
-    currentDeck{nullptr}
+    dragable{true}
 {
     QGraphicsOpacityEffect* effect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(effect);
     effect->setOpacity(1);
     setMouseTracking(false);
+    setScaledContents(true);
+    setFixedSize(80,122);
+    // show();
 }
 
 void CardFrame::mousePressEvent(QMouseEvent *event) {
@@ -35,10 +41,8 @@ void CardFrame::mousePressEvent(QMouseEvent *event) {
 void CardFrame::mouseMoveEvent(QMouseEvent *event) {
     if ( is_dragging ) {
         QPoint delta = event->globalPos() - mousePosition;
-        mousePosition = event->globalPos();
 
-        cardPosition += delta;
-        move(cardPosition);
+        move(cardPosition+delta);
     }
     QFrame::mouseMoveEvent(event);
 }
@@ -47,30 +51,18 @@ void CardFrame::mouseReleaseEvent(QMouseEvent *event) {
     if ( event->button() == Qt::LeftButton && is_dragging ) {
         is_dragging = false;
 
+        move(cardPosition);
         QGraphicsOpacityEffect* effect = qobject_cast<QGraphicsOpacityEffect*>(graphicsEffect());
         effect->setOpacity(1);
         setGraphicsEffect(effect);
 
-        DeckFrame* deck;
-        emit mainWindow->checkForDeck(mousePosition, deck);
-        if ( deck != nullptr && deck != currentDeck ) {
-            if ( currentDeck != nullptr) {
-                CardFrame* card;
-                emit currentDeck->popCard(card);
-                if ( card != this )
-                    throw std::runtime_error("Cards are insane");
-            }
-            emit deck->pushCard(this);
-        } else if ( currentDeck != nullptr ) {
-            CardFrame* card;
-            emit currentDeck->popCard(card);
-            if ( card != this )
-                throw std::runtime_error("Cards are insane");
-        }
+        std::string deck;
+        mainWindow->checkForDeck(mousePosition, deck);
+
     }
 }
 
-bool CardFrame::isDragable() {return dragable;}
+bool CardFrame::isDragable() const {return dragable;}
 void CardFrame::toggleDragable(bool *on) {
     if ( on == nullptr ) {
         dragable = !dragable;
@@ -79,4 +71,20 @@ void CardFrame::toggleDragable(bool *on) {
     }
 }
 
-void CardFrame::setCurrentDeck(DeckFrame* deck) {currentDeck = deck;}
+void CardFrame::setRotation(int rot) {
+    rotation = rot;
+}
+int CardFrame::getRotation() const { return rotation; }
+
+void CardFrame::paintEvent(QPaintEvent* event) {
+    if ( rotation != 0 ) {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        QPoint center = this->rect().center();
+        painter.translate(center);
+        painter.rotate(rotation);
+        painter.translate(-center);
+    }
+    QLabel::paintEvent(event);
+}

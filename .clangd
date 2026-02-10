@@ -1,0 +1,10 @@
+CompileFlags:
+  Add:
+    - -I/usr/share/qtcreator/cplusplus/wrappedQtHeaders
+    - -I/usr/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore
+    - -I/home/a97/Documents/CardsGame_Client/build/Desktop-Debug/CardsGame_Client_autogen/include
+    - -I/usr/include/qt6
+    - -I/usr/include/qt6/mkspecs/linux-g++
+    - -I/usr/include/qt6/QtWidgets
+    - -I/usr/include/qt6/QtGui
+    - -I/usr/include/qt6/QtCore

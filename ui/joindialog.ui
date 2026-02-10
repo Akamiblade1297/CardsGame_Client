@@ -100,7 +100,7 @@
   <customwidget>
    <class>FormLineEdit</class>
    <extends>QLineEdit</extends>
-   <header location="global">../../../../formlineedit.h</header>
+   <header location="global">../../../../src/ui/formlineedit.h</header>
   </customwidget>
  </customwidgets>
  <resources/>
