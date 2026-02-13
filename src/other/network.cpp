@@ -93,8 +93,8 @@ namespace ServerScanner {
         struct timeval tv;
         FD_ZERO(&fdset);
         FD_SET(sock, &fdset);
-        tv.tv_sec = 0;
-        tv.tv_usec = 500; // 500 microseconds timeout
+        tv.tv_sec = 2;
+        tv.tv_usec = 0;
 
         bool isConnected = false;
         if (select(sock + 1, NULL, &fdset, NULL, &tv) == 1) {
@@ -143,62 +143,52 @@ namespace ServerScanner {
     }
 
     // Worker function for thread pool
-    void workerThread(const std::vector<uint32_t>& ipList, std::vector<uint32_t>& results,
-                      size_t startIdx, size_t endIdx) {
-        for (size_t i = startIdx; i < endIdx && !stopScan; ++i) {
-            if (checkServer(ipList[i], 8494)) {
+    void workerThread(uint32_t startIp, uint32_t ipCount, std::function<void(uint32_t)> func ) {
+        for (uint32_t i = 0; i < ipCount ; i++) {
+            uint32_t ip = startIp+i;
+            if (checkServer(ip, 8494)) {
                 std::lock_guard<std::mutex> lock(resultMutex);
-                results.push_back(ntohl(ipList[i]));
+                func(ip);
             }
         }
     }
 
     // Main scanning function
-     std::vector<uint32_t> scanSubnet(uint32_t subnetAddress, uint32_t subnetMask,
+     void scanSubnet(uint32_t subnetAddress, uint32_t subnetMask, std::function<void(uint32_t)> func,
                                      unsigned int maxThreads) {
-        std::vector<uint32_t> serversFound;
+         stopScan = false;
 
         // Calculate network and broadcast addresses[citation:1]
         if ( subnetAddress == 0x7F000001 ) {
             if ( checkServer(subnetAddress, 8494) )
-                return {subnetAddress};
-            else
-                return {};
+                func(subnetAddress);
+            return;
         }
         uint32_t networkAddress = subnetAddress & subnetMask;
         uint32_t broadcastAddress = subnetAddress | (~subnetMask);
-
-        // Generate list of all IPs in the subnet (excluding network and broadcast)
-        std::vector<uint32_t> ipList;
-        for (uint32_t ip = networkAddress + 1; ip < broadcastAddress; ++ip) {
-            ipList.push_back(ip);
-        }
+        uint32_t totalIps = ( broadcastAddress - networkAddress - 1 );
 
         // Limit threads to reasonable number
         unsigned int numThreads = std::min(maxThreads, std::thread::hardware_concurrency());
-        numThreads = std::min(numThreads, (unsigned int)ipList.size());
-
+        numThreads = std::min(numThreads, totalIps);
         if (numThreads == 0) numThreads = 1;
 
         // Calculate IPs per thread
-        size_t ipsPerThread = ipList.size() / numThreads;
+        uint32_t ipsPerThread = totalIps / numThreads;
         std::vector<std::thread> threads;
 
         // Create worker threads
         for (unsigned int i = 0; i < numThreads; ++i) {
-            size_t startIdx = i * ipsPerThread;
-            size_t endIdx = (i == numThreads - 1) ? ipList.size() : startIdx + ipsPerThread;
+            uint32_t startIp = (networkAddress+1) + (i*ipsPerThread);
+            uint32_t ipCount = std::min((broadcastAddress - startIp), ipsPerThread);
 
-            threads.emplace_back(&ServerScanner::workerThread,
-                                std::cref(ipList), std::ref(serversFound), startIdx, endIdx);
+            threads.emplace_back(&ServerScanner::workerThread, startIp, ipCount, func);
         }
 
-        // Wait for all threads to complete
-        for (auto& thread : threads) {
-            thread.join();
+        // Detach all threads
+        for ( std::thread& thread : threads ) {
+            thread.detach();
         }
-
-        return serversFound;
     }
 
     // Stop scanning prematurely

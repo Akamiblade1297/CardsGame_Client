@@ -11,7 +11,8 @@ Card::Card ( int num, CardFrame* frame, int x, int y, int rot )
     Rot{rot},
     X{x},
     Y{y},
-    Opacity{1}
+    Opacity{1},
+    Draggable(true)
 {
     if ( Frame != nullptr ) {
         QMetaObject::invokeMethod(Frame, [this]() {
@@ -25,12 +26,12 @@ Card::~Card() {
     delete Frame;
 }
 
-void Card::transform( int x, int y ) {
+void Card::transform ( int x, int y ) {
     X = x;
     Y = y;
 }
 
-int Card::rotate( int rot ) {
+int Card::rotate ( int rot ) {
     if ( rot < 0 || rot > 360 ) {
         return -1;
     }
@@ -38,7 +39,7 @@ int Card::rotate( int rot ) {
     return 0;
 }
 
-int Card::parse_card( std::string card ) {
+int Card::parse_card ( std::string card ) {
     try {
         Number = std::stoi(card);
         if ( Number < 0 || Number > CARD_COUNT )
@@ -57,8 +58,12 @@ std::string Card::unparse_card() const {
     else return "";
 }
 
-void Card::setOpacity( qreal opacity ) {
+void Card::setOpacity ( qreal opacity ) {
     Opacity = opacity;
+}
+
+void Card::setDraggable ( bool draggable ) {
+    Draggable = draggable;
 }
 
 int Card::x() const {
@@ -75,6 +80,9 @@ int Card::num() const {
 }
 qreal Card::opacity() const {
     return Opacity;
+}
+bool Card::draggable() const {
+    return Draggable;
 }
 
 void Card::updateFrame() {
@@ -98,6 +106,7 @@ void Card::updateFrame() {
     Frame->setRotation(Rot);
     Frame->setPixmap(img);
     Frame->move(pos);
+    Frame->setDraggable(Draggable);
 
     effect->setOpacity(Opacity);
 }

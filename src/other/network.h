@@ -25,6 +25,7 @@
 #include <atomic>
 #include <thread>
 #include <vector>
+#include <functional>
 
 #define DEL '\n'
 
@@ -100,13 +101,12 @@ public:
 namespace ServerScanner {
 
     // Check a single IP address for the server
-    bool checkServer(uint32_t ipAddress, uint16_t port);
+    bool checkServer( uint32_t ipAddress, uint16_t port );
 
     // Worker function for thread pool
-    void workerThread(const std::vector<uint32_t>& ipList, std::vector<uint32_t>& results,
-                      size_t startIdx, size_t endIdx);
+    void workerThread( uint32_t startIp, uint32_t ipCount, std::function<void(uint32_t)> func );
 
-    std::vector<uint32_t> scanSubnet(uint32_t subnetAddress, uint32_t subnetMask,
+    void scanSubnet(uint32_t subnetAddress, uint32_t subnetMask, std::function<void(uint32_t)> func,
                                      unsigned int maxThreads = 50);
     void stop();
 }

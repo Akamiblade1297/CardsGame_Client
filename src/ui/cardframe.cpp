@@ -11,7 +11,7 @@ CardFrame::CardFrame( class Card* card, QWidget *parent)
     : QLabel{parent},
     card(card),
     is_dragging{false},
-    dragable{true}
+    draggable{true}
 {
     QGraphicsOpacityEffect* effect = new QGraphicsOpacityEffect(this);
     setGraphicsEffect(effect);
@@ -23,7 +23,7 @@ CardFrame::CardFrame( class Card* card, QWidget *parent)
 }
 
 void CardFrame::mousePressEvent(QMouseEvent *event) {
-    if ( event->button() == Qt::LeftButton && dragable ) {
+    if ( event->button() == Qt::LeftButton && draggable ) {
         is_dragging = true;
         cardPosition = pos();
         mousePosition = event->globalPos();
@@ -62,13 +62,9 @@ void CardFrame::mouseReleaseEvent(QMouseEvent *event) {
     }
 }
 
-bool CardFrame::isDragable() const {return dragable;}
-void CardFrame::toggleDragable(bool *on) {
-    if ( on == nullptr ) {
-        dragable = !dragable;
-    } else {
-        dragable = *on;
-    }
+bool CardFrame::isDragable() const {return draggable;}
+void CardFrame::setDraggable(bool drag) {
+    draggable = drag;
 }
 
 void CardFrame::setRotation(int rot) {

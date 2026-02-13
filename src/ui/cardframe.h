@@ -10,7 +10,7 @@ class CardFrame : public QLabel
 public:
     explicit CardFrame( Card* card, QWidget *parent = nullptr );
     bool isDragable () const;
-    void toggleDragable ( bool* on );
+    void setDraggable ( bool draggable );
     void setRotation( int rot );
     int getRotation() const;
     int index;
@@ -24,7 +24,7 @@ protected:
 private:
     int rotation;
     bool is_dragging;
-    bool dragable;
+    bool draggable;
     QPoint cardPosition;
     QPoint mousePosition;
     Card* card;

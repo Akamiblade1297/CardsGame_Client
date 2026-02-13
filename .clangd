@@ -8,3 +8,4 @@ CompileFlags:
     - -I/usr/include/qt6/QtWidgets
     - -I/usr/include/qt6/QtGui
     - -I/usr/include/qt6/QtCore
+    - --std=c++20

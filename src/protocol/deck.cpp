@@ -16,6 +16,10 @@ void Deck::push ( Card* card ) {
     const QPoint pos = Frame->pos();
     card->transform(pos.x()+offset, pos.y()+offset);
 
+    if ( Cards.size() > 1 ) {
+        Cards[Cards.size()-2]->setDraggable(false);
+    }
+
     if ( Cards.size() > DECK_MAX_VIEW ) {
         Cards[Cards.size()-(DECK_MAX_VIEW+1)]->setOpacity(0);
         for ( int i = 1 ; i <= DECK_MAX_VIEW ; i++ ) {

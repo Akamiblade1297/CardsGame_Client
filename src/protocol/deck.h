@@ -5,7 +5,7 @@
 #include <QLabel>
 
 #define DECK_MAX_VIEW 5
-#define DECK_CARD_OFFSET 5
+#define DECK_CARD_OFFSET 1
 
 /**
  * @brief The Deck class

@@ -21,7 +21,7 @@ void MainWindow::on_joinServerButton_pressed() {
         msgBox->button(QMessageBox::Yes)->setText("Да");
         msgBox->button(QMessageBox::No)->setText("Нет");
         if ( msgBox->exec() == QMessageBox::Yes ) {
-            consoleIn("connect "+ip+" "+port+" && rejoin $"+ip+":"+port, false);
+            consoleIn(QString("connect %1 %2 && rejoin $%1:%2").arg(ip,port), false);
             return;
         }
     }
@@ -31,8 +31,10 @@ void MainWindow::on_joinServerButton_pressed() {
     nameDialog->setTextEchoMode(QLineEdit::Normal);
     nameDialog->setOkButtonText("Ок");
     nameDialog->setCancelButtonText("Отмена");
-    if ( nameDialog->exec() == QDialog::Accepted && !nameDialog->textValue().isEmpty() )
-        consoleIn("connect "+ip+" "+port+" && join "+nameDialog->textValue()+" > "+ip+":"+port+" && "+ip+":"+port+"@user = "+nameDialog->textValue(), false);
+    if ( nameDialog->exec() == QDialog::Accepted && !nameDialog->textValue().isEmpty() ) {
+        // consoleIn("connect "+ip+" "+port+" && join "+nameDialog->textValue()+" > "+ip+":"+port+" && "+ip+":"+port+"@user = "+nameDialog->textValue(), false);
+        consoleIn(QString("connect %1 %2 && join %3 > %1:%2 && %1:%2@user = %3 && cards TREASURES && cards TRAPDOORS").arg(ip, port, nameDialog->textValue()), false);
+    }
 }
 
 void MainWindow::addServer ( const char* ip, unsigned short port ) {
@@ -60,20 +62,20 @@ void MainWindow::clearServers() {
 }
 
 void MainWindow::UpdateServerList() {
+    ServerScanner::stop();
     clearServers();
-    std::vector<uint32_t> servers =
-            ServerScanner::scanSubnet(subnet_addr, subnet_mask);
-    for ( int i = 0 ; i < servers.size() ; i++ ) {
+    ServerScanner::scanSubnet(subnet_addr, subnet_mask, [this](uint32_t serverIP){
+
         char ip[INET_ADDRSTRLEN];
 #ifdef _WIN32
-        inet_ntop(AF_INET, &servers[i], ip, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &serverIP, ip, INET_ADDRSTRLEN);
 #else
         struct in_addr addr;
-        addr.s_addr = htonl(servers[i]);
+        addr.s_addr = htonl(serverIP);
         inet_ntop(AF_INET, &addr, ip, INET_ADDRSTRLEN);
 #endif
-        addServer(ip, 8494);
-    }
+        QMetaObject::invokeMethod(this, [this,ip](){ addServer(ip, 8494); });
+    });
 }
 
 void MainWindow::UpdateServerListIn() {

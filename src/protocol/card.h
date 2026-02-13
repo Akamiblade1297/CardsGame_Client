@@ -25,6 +25,7 @@ private:
   int Y;
   int Rot;
   qreal Opacity;
+  bool Draggable;
 public:
   CardContainer* Container;
   /**
@@ -67,12 +68,19 @@ public:
   int rot() const;
   int num() const;
   qreal opacity() const;
+  bool draggable() const;
 
   /**
    * @brief Set card opacity
    * @param opacity
    */
-  void setOpacity( qreal opacity );
+  void setOpacity ( qreal opacity );
+
+  /**
+   * @brief Set card draggable
+   * @param draggable
+   */
+  void setDraggable ( bool draggable );
 
   // NEXT METHODS SHOULD ONLY BE CALLED FROM GUI THREAD
   /**
