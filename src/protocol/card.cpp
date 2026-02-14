@@ -40,14 +40,19 @@ int Card::rotate ( int rot ) {
 }
 
 int Card::parse_card ( std::string card ) {
-    try {
-        Number = std::stoi(card);
-        if ( Number < 0 || Number > CARD_COUNT )
-            return -1;
-    } catch ( std::invalid_argument ) {;} catch ( std::out_of_range ) { return -1; }
     if ( card == "TRAP" ) Number = TRAP;
     else if ( card == "TRES" ) Number = TRES;
-    else return -1;
+    else {
+        try {
+            Number = std::stoi(card);
+            if ( Number < 0 || Number > CARD_COUNT )
+                return -1;
+        } catch ( std::out_of_range ) {
+            return -1;
+        } catch ( std::invalid_argument ) {
+            return -1;
+        }
+    }
     return 0;
 }
 
@@ -103,10 +108,11 @@ void Card::updateFrame() {
     QPoint pos;
     pos.setX(X);
     pos.setY(Y);
+
     Frame->setRotation(Rot);
     Frame->setPixmap(img);
     Frame->move(pos);
     Frame->setDraggable(Draggable);
-
     effect->setOpacity(Opacity);
+    Frame->raise();
 }

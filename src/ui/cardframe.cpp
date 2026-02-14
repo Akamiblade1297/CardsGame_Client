@@ -1,4 +1,6 @@
 #include "../protocol/card.h"
+#include "../protocol/deck.h"
+#include "../protocol/functions.h"
 #include "cardframe.h"
 #include "mainwindow.h"
 #include <QGraphicsOpacityEffect>
@@ -51,14 +53,25 @@ void CardFrame::mouseReleaseEvent(QMouseEvent *event) {
     if ( event->button() == Qt::LeftButton && is_dragging ) {
         is_dragging = false;
 
+        mousePosition = event->globalPos();
+        CardContainer* src = card->Container;
+        CardContainer* dest = mainWindow->checkContainer(mousePosition);
+
+        if ( dynamic_cast<Deck*>(src) ) {
+            if ( src != dest )
+                emit mainWindow->consoleIn( QString("deck %1 %2 %3 %4")
+                    .arg(nameByContainer(src)).arg(nameByContainer(dest)).arg(pos().x()).arg(pos().y()),
+                    false);
+        } else {
+            emit mainWindow->consoleIn( QString("move %1 %2 %3 %4 %5")
+                    .arg(nameByContainer(src)).arg(src->find(card)).arg(nameByContainer(dest)).arg(pos().x()).arg(pos().y()),
+                    false);
+        }
+        
         move(cardPosition);
         QGraphicsOpacityEffect* effect = qobject_cast<QGraphicsOpacityEffect*>(graphicsEffect());
         effect->setOpacity(1);
         setGraphicsEffect(effect);
-
-        std::string deck;
-        mainWindow->checkForDeck(mousePosition, deck);
-
     }
 }
 

@@ -91,8 +91,8 @@ MainWindow::MainWindow (QWidget *parent)
 
   // ServerList Context Menu
   connect(ui->ServerList, &QWidget::customContextMenuRequested, this, &MainWindow::ServerListContextMenu);
-  subnet_addr = 0x7F000001; // 127.0.0.1
-  subnet_mask = 0;
+  subnet_addr = 0xC0A80000; // 192.168.0.0
+  subnet_mask = 0xFFFFFF00;
   UpdateServerList();
 
   // Splitter stretch factors
@@ -179,12 +179,12 @@ void MainWindow::toggle_widget ( bool checked ) {
   }
 }
 
-void MainWindow::checkForDeck( QPoint& point, std::string& deck ) const {
+CardContainer* MainWindow::checkContainer( QPoint& point ) const {
     if ( ui->Treasures->rect().contains(ui->Treasures->mapFromGlobal(point)) ) {
-        deck = "TREASURES";
+        return &Treasures;
     } else if ( ui->Trapdoors->rect().contains(ui->Trapdoors->mapFromGlobal(point)) ) {
-        deck = "TRAPDOORS";
+        return &Trapdoors;
     } else {
-        deck = "";
+        return &Table;
     }
 }

@@ -10,6 +10,8 @@
 #define CONHISTORY gameDir+".console_history"
 #define CHAT_CMDS { "/me", "/whisper", "/roll", "/clear" }
 
+class CardContainer;
+
 QT_BEGIN_NAMESPACE
 namespace Ui
 {
@@ -24,7 +26,7 @@ class MainWindow : public QMainWindow
 public:
   MainWindow (QWidget *parent = nullptr);
   ~MainWindow ();
-  void checkForDeck ( QPoint& point, std::string& deck ) const;
+  CardContainer* checkContainer ( QPoint& point ) const;
   CardFrame* createCardFrame();
 
 signals:

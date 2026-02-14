@@ -21,6 +21,16 @@
 
 #define CHECK_SIZE if ( received.size() < size ) {  return; }
 
+inline void handle_updated_cards ( Card** updated_cards ) {
+    QMetaObject::invokeMethod(mainWindow, [updated_cards](){
+        for ( int i = 0 ; i < UPDATED_CARDS_LENGTH ; i++ ) {
+            if ( updated_cards[i] == nullptr )
+                break;
+            updated_cards[i]->updateFrame();
+        } delete updated_cards;
+    });
+}
+
 namespace {
     Connection* conn = nullptr;
     std::thread* receiver_thread;
@@ -148,7 +158,7 @@ namespace {
             if ( received[0] == "JOIN" ) { // JOIN <player>
                 size = 2; CHECK_SIZE;
 
-                Players[received[1]];
+                Players.emplace(received[1], new Player);
                 emit mainWindow->consoleOut(QString::fromStdString(received[1]+" joined"));
                 emit mainWindow->chatOut(QString::fromStdString("<i>"+received[1]+" joined</i>"));
             } else if ( received[0] == "WHISPER_SUC" ) { // WHISPER_SUC
@@ -260,7 +270,7 @@ namespace {
                     } catch (std::invalid_argument) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_SEE");} catch (std::out_of_range) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_SEE");}
                     card->transform(x, y);
                     card->rotate(rot);
-                    _see->push(card);
+                    _see->push(card, nullptr);
 
                     size++;CHECK_SIZE;
                 }
@@ -284,7 +294,7 @@ namespace {
                     } catch (std::invalid_argument) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_CARDS");} catch (std::out_of_range) {throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_CARDS");}
                     card->transform(x, y);
                     card->rotate(rot);
-                    _cards->push(card);
+                    _cards->push(card, nullptr);
 
                     size++;CHECK_SIZE;
                 }
@@ -304,7 +314,7 @@ namespace {
                 while (1) {
                     if ( received[size-1] == "END" ) break;
                     _players->push_back(received[size-1]);
-                    Players[received[size-1]];
+                    Players.emplace(received[size-1], new Player);
 
                     size++;CHECK_SIZE;
                 }
@@ -321,24 +331,50 @@ namespace {
 
                 if ( received[i] == "DECK" ) { // DECK <deck src> <dest> <x> <y> <card>
                     size += 5; CHECK_SIZE;
+                    Card** updated_cards = new Card*[UPDATED_CARDS_LENGTH];
                     Deck* src = deckByName(received[i+ 1]);
                     CardContainer* dest = containerByName(received[i+ 2], sender);
                     if ( dest == nullptr || src == nullptr ) throw ProtocolCriticalError(CRIT__BAD_CONTAINER, "_worker_DECK");
-                    if ( src->pop_and_move(received[i+ 3], received[i+ 4], dest, received[i+ 5]) != 0 ) throw ProtocolCriticalError(CRIT__EMPTY_DECK, "_worker_DECK");
+                    int res = src->pop_and_move(received[i+ 3], received[i+ 4], dest, received[i+ 5], updated_cards);
+                    if      ( res == -1 ) throw ProtocolCriticalError(CRIT__EMPTY_DECK, "_worker_DECK");
+                    else if ( res == -2 ) throw ProtocolCriticalError(CRIT__BAD_CARD, "_worker_DECK");
+                    else if ( res == -3 ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_DECK");
+                    handle_updated_cards(updated_cards);
 
                     emit mainWindow->consoleOut(QString::fromStdString(received[1]+" drawed Card_"+received[i+ 5]+" from "+received[i+ 1]+" to "+received[i+ 2]+"["+std::to_string(dest->size()-1)+"] (X: "+received[i+ 3]+", Y: "+received[i+ 4]+")"));
+                    
                     if ( sender == LOCALPLAYER ) {
                         ErDeck = _NOERROR;
                         flags[DECK_R] = true;
                     }
                 } else if ( received[i] == "MOVE" ) { // MOVE <spatial src> <card_id> <dest> <x> <y> <card>
                     size += 6; CHECK_SIZE;
+                    Card** updated_cards = new Card*[UPDATED_CARDS_LENGTH];
                     CardContainer* src     = containerByName(received[i+ 1], sender);
                     CardContainer* dest    = containerByName(received[i+ 3], sender);
                     if ( dest == nullptr || src == nullptr ) throw ProtocolCriticalError(CRIT__BAD_CONTAINER, "_worker_MOVE");
-                    if ( src->move(received[i+ 2], received[i+ 4], received[i+ 5], dest, received[i+ 6]) != 0 ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_MOVE");
+                    if ( src == dest ) {
+                        Card* card = src->at(received[i+ 2]);
+                        if ( card == nullptr ) throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_MOVE");
+                        int x, y;
+                        try {
+                            x = std::stoi(received[i+ 4]);
+                            y = std::stoi(received[i+ 5]);
+                        } catch ( std::invalid_argument ) {
+                            throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_MOVE");
+                        } catch ( std::out_of_range ) {
+                            throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_MOVE");
+                        }
+                        card->transform(x, y);
+                        updated_cards[0] = card;
+                        updated_cards[1] = nullptr;
+                    } else if ( src->move(received[i+ 2], received[i+ 4], received[i+ 5], dest, received[i+ 6], updated_cards) != 0 )
+                        throw ProtocolCriticalError(CRIT__NUM_ERROR, "_worker_MOVE");
+                    handle_updated_cards(updated_cards);
 
-                    emit mainWindow->consoleOut(QString::fromStdString(received[1]+" moved Card_"+received[i+ 6]+" from "+received[i+ 1]+"["+received[i+ 2]+"] to "+received[i+ 3]+"["+std::to_string(dest->size()-1)+"] (X: "+received[i+ 4]+", Y: "+received[i+ 5]+")"));
+                    // emit mainWindow->consoleOut(QString::fromStdString(received[1]+" moved Card_"+received[i+ 6]+" from "+received[i+ 1]+"["+received[i+ 2]+"] to "+received[i+ 3]+"["+ ( src == dest ? received[i+ 2] : std::to_string(dest->size()-1) )+"] (X: "+received[i+ 4]+", Y: "+received[i+ 5]+")"));
+                    emit mainWindow->consoleOut(QString("%1 moved Card_%2 from %3[%4] to %5[%6] (X: %7, Y: %8)")
+                            .arg(received[1], received[i+ 6], received[i+ 1], received[i+ 2], received[i+ 3], ( src == dest ? received[i+ 2] : std::to_string(dest->size()-1) ), received[i+ 4], received[i+ 5] ));
                     if ( sender == LOCALPLAYER ) {
                         ErMove = _NOERROR;
                         flags[MOVE_R] = true;

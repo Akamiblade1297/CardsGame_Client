@@ -22,8 +22,9 @@ public:
   /**
    * @brief Push card to container
    * @param card Card
+   * @param updated_cards Pointer to array, where to store edited cards 
    */
-  virtual void push ( Card* card );
+  virtual void push ( Card* card, Card** updated_cards );
 
   /**
    * @brief Destroy all cards inside container
@@ -37,9 +38,10 @@ public:
    * @param sy New Y coordinate
    * @param container Destinition container
    * @param num New card Number
+   * @param updated_cards Pointer to array, where to store edited cards 
    * @return 0 if Success, -1 if Failed
    */
-  virtual int move ( std::string si, std::string sx, std::string sy, CardContainer* container, std::string num );
+  virtual int move ( std::string si, std::string sx, std::string sy, CardContainer* container, std::string num, Card** updated_card );
 
   /**
    * @brief Rotate card
@@ -52,6 +54,7 @@ public:
   QFrame* space() const;
   int size() const;
   bool empty() const;
+  size_t find ( Card* card ) const;
 };
 
 extern CardContainer Table;

@@ -33,7 +33,7 @@ void MainWindow::on_joinServerButton_pressed() {
     nameDialog->setCancelButtonText("Отмена");
     if ( nameDialog->exec() == QDialog::Accepted && !nameDialog->textValue().isEmpty() ) {
         // consoleIn("connect "+ip+" "+port+" && join "+nameDialog->textValue()+" > "+ip+":"+port+" && "+ip+":"+port+"@user = "+nameDialog->textValue(), false);
-        consoleIn(QString("connect %1 %2 && join %3 > %1:%2 && %1:%2@user = %3 && cards TREASURES && cards TRAPDOORS").arg(ip, port, nameDialog->textValue()), false);
+        consoleIn(QString("connect %1 %2 && join %3 > %1:%2 && %1:%2@user = %3 && cards TREASURES && cards TRAPDOORS && players").arg(ip, port, nameDialog->textValue()), false);
     }
 }
 

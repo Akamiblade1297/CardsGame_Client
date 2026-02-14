@@ -32,16 +32,20 @@ Card* CardContainer::at ( int i ) {
     return operator[](i);
 }
 
-void CardContainer::push ( Card* card ) {
+void CardContainer::push ( Card* card, Card** updated_cards ) {
     Cards.push_back(card);
     card->Container = this;
+    if ( updated_cards != nullptr ) {
+        updated_cards[0] = card;
+        updated_cards[1] = nullptr;
+    }
 }
 
 void CardContainer::clear() {
     Cards.erase(Cards.begin(), Cards.begin()+Cards.size());
 }
 
-int CardContainer::move ( std::string si, std::string sx, std::string sy, CardContainer* container, std::string num ) {
+int CardContainer::move ( std::string si, std::string sx, std::string sy, CardContainer* container, std::string num, Card** updated_cards ) {
     int i, x, y;
     try {
         i = std::stoi(si);
@@ -53,10 +57,11 @@ int CardContainer::move ( std::string si, std::string sx, std::string sy, CardCo
       return -1;
     }
     if ( i < 0 || i > Cards.size() ) return -1;
-    if ( Cards[i]->parse_card(num) != 0 ) return -1;
-    Cards[i]->transform(x, y);
-    container->push(Cards[i]);
+    Card* card = Cards[i];
+    if ( card->parse_card(num) != 0 ) return -1;
+    card->transform(x, y);
     Cards.erase(Cards.begin()+i);
+    container->push(card, updated_cards);
     return 0;
 }
 
@@ -84,6 +89,13 @@ int CardContainer::size() const {
 
 bool CardContainer::empty() const {
     return Cards.empty();
+}
+
+size_t CardContainer::find ( Card* card ) const {
+    for ( size_t i = 0 ; i < Cards.size() ; i++ ) {
+        if ( Cards[i] == card )
+            return i;
+    } return -1;
 }
 
 CardContainer Table(nullptr);

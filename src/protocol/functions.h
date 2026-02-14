@@ -38,6 +38,13 @@ CardContainer* spatialByName   ( std::string name, Player* player );
  */
 Deck* deckByName ( std::string name );
 /**
+ * Get name of container
+ *
+ * @param container
+ * @return name
+ */
+std::string nameByContainer ( CardContainer* container );
+/**
  * Get a Visibility of Card Container
  *
  * @param containerName Container Name

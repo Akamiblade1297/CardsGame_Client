@@ -57,3 +57,13 @@ CardContainer* spatialByName ( std::string name, Player* player ) {
         return nullptr;
     }
 }
+
+std::string nameByContainer( CardContainer* container ) {
+    if ( container == &Table ) {
+        return "TABLE";
+    } else if ( container == &Treasures ) {
+        return "TREASURES";
+    } else if ( container == &Trapdoors ) {
+        return "TRAPDOORS";
+    }
+}
